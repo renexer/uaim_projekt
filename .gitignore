@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+mobile/.gradle/
+mobile/local.properties
+mobile/build/
+mobile/app/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+backend/.env
+
+# Logs
+*.log
