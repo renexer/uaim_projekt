@@ -115,10 +115,18 @@ class AvailabilityService:
 
     @staticmethod
     def _is_blocked(start_at, end_at, exceptions, appointments):
+        # Usuwamy strefę czasową przed porównaniem, aby uniknąć błędu na SQLite/Windows
+        start_at = start_at.replace(tzinfo=None)
+        end_at = end_at.replace(tzinfo=None)
+        
         for item in exceptions:
-            if item.type == "UNAVAILABLE" and item.start_at < end_at and item.end_at > start_at:
+            item_start = item.start_at.replace(tzinfo=None)
+            item_end = item.end_at.replace(tzinfo=None)
+            if item.type == "UNAVAILABLE" and item_start < end_at and item_end > start_at:
                 return True
         for item in appointments:
-            if item.start_at < end_at and item.end_at > start_at:
+            item_start = item.start_at.replace(tzinfo=None)
+            item_end = item.end_at.replace(tzinfo=None)
+            if item_start < end_at and item_end > start_at:
                 return True
         return False
