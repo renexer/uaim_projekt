@@ -1,0 +1,738 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[polish]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+
+\geometry{margin=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+\title{Backend aplikacji -- dokumentacja developerska}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Cel dokumentu}
+
+Ten dokument opisuje aktualny backend aplikacji, sposób połączenia modułów, główne przepływy danych oraz sposób uruchomienia i testowania projektu lokalnie. Ma służyć kolejnym programistom jako szybkie wejście do kodu, tak aby mogli bezpiecznie rozwijać backend i podłączać frontend.
+
+\section{Stack technologiczny}
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item Python
+    \item Flask
+    \item Flask-SQLAlchemy
+    \item Flask-JWT-Extended
+    \item Marshmallow
+    \item SQLite na potrzeby lokalnego developmentu
+    \item pytest do testów
+\end{itemize}
+
+Aktualnie projekt działa na \textbf{SQLite}, co upraszcza lokalne uruchomienie. Jest to rozwiązanie developerskie. Docelowo architektura nadal nadaje się do późniejszego powrotu do PostgreSQL.
+
+\section{Struktura katalogów}
+
+Najważniejsze elementy backendu:
+
+\begin{lstlisting}
+backend/
+|-- app/
+|   |-- __init__.py
+|   |-- config.py
+|   |-- extensions.py
+|   |-- seed_data.py
+|   |-- api/
+|   |-- models/
+|   |-- repositories/
+|   |-- schemas/
+|   |-- services/
+|   |-- utils/
+|   `-- cli/
+|-- tests/
+|-- requirements.txt
+`-- run.py
+\end{lstlisting}
+
+\subsection{Odpowiedzialność warstw}
+
+\subsubsection*{app/api/}
+Warstwa HTTP. Zawiera blueprinty Flask i endpointy REST. Odpowiada za:
+\begin{itemize}[leftmargin=1.2cm]
+    \item odbiór requestu,
+    \item walidację danych wejściowych przez schemat,
+    \item wywołanie odpowiedniego serwisu,
+    \item zwrócenie spójnej odpowiedzi JSON.
+\end{itemize}
+
+Route'y powinny być cienkie. Logika biznesowa nie powinna trafiać tutaj.
+
+\subsubsection*{app/services/}
+Główna logika biznesowa systemu. Tu realizowane są:
+\begin{itemize}[leftmargin=1.2cm]
+    \item rejestracja i logowanie,
+    \item wyszukiwanie usług i terapeutów,
+    \item liczenie dostępności,
+    \item rezerwacja i anulowanie wizyt,
+    \item obsługa opinii,
+    \item operacje admin/staff.
+\end{itemize}
+
+To najważniejsza warstwa do dalszej rozbudowy.
+
+\subsubsection*{app/repositories/}
+Warstwa dostępu do danych. Zawiera zapytania do modeli i bazy. W projekcie repozytoria są używane częściowo --- część serwisów korzysta też bezpośrednio z modeli ORM.
+
+\subsubsection*{app/models/}
+Modele SQLAlchemy, czyli definicje tabel i relacji.
+
+\subsubsection*{app/schemas/}
+Schematy Marshmallow do:
+\begin{itemize}[leftmargin=1.2cm]
+    \item walidacji requestów,
+    \item serializacji odpowiedzi.
+\end{itemize}
+
+\subsubsection*{app/utils/}
+Wspólne helpery:
+\begin{itemize}[leftmargin=1.2cm]
+    \item błędy,
+    \item role,
+    \item paginacja,
+    \item funkcje czasu,
+    \item auth helpers.
+\end{itemize}
+
+\subsubsection*{app/seed\_data.py}
+Dane startowe do developmentu i testów.
+
+\subsubsection*{tests/}
+Testy backendu.
+
+\section{Główne moduły backendu}
+
+\subsection{Auth}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/auth\_routes.py}
+    \item \texttt{app/services/auth\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item rejestrację,
+    \item logowanie,
+    \item refresh token,
+    \item logout,
+    \item pobieranie aktualnego użytkownika.
+\end{itemize}
+
+\subsection{Katalog usług i terapeutów}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/services\_routes.py}
+    \item \texttt{app/api/therapists\_routes.py}
+    \item \texttt{app/services/catalog\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item listę usług,
+    \item szczegóły usługi,
+    \item terapeutów przypisanych do usługi,
+    \item publiczny profil terapeuty.
+\end{itemize}
+
+\subsection{Dostępność}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/availability\_routes.py}
+    \item \texttt{app/services/availability\_service.py}
+\end{itemize}
+
+Obsługuje liczenie wolnych terminów na podstawie:
+\begin{itemize}[leftmargin=1.2cm]
+    \item reguł grafiku,
+    \item wyjątków,
+    \item istniejących wizyt,
+    \item czasu trwania usługi.
+\end{itemize}
+
+Sloty nie są trzymane w tabeli. Są generowane dynamicznie.
+
+\subsection{Wizyty}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/appointments\_routes.py}
+    \item \texttt{app/services/appointment\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item utworzenie rezerwacji,
+    \item listę wizyt pacjenta,
+    \item szczegóły wizyty,
+    \item anulowanie wizyty.
+\end{itemize}
+
+\subsection{Historia konsultacji}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/consultations\_routes.py}
+    \item \texttt{app/services/consultation\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item historię zakończonych wizyt pacjenta,
+    \item opis konsultacji.
+\end{itemize}
+
+\subsection{Opinie}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/reviews\_routes.py}
+    \item \texttt{app/services/review\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item publiczne opinie terapeuty,
+    \item dodanie opinii po zakończonej wizycie,
+    \item przeliczanie średniej oceny terapeuty.
+\end{itemize}
+
+\subsection{Admin}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/admin\_services\_routes.py}
+    \item \texttt{app/api/admin\_therapists\_routes.py}
+    \item \texttt{app/api/admin\_availability\_routes.py}
+    \item \texttt{app/services/admin\_service.py}
+    \item \texttt{app/services/therapist\_admin\_service.py}
+    \item \texttt{app/services/schedule\_admin\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item zarządzanie usługami,
+    \item tworzenie i edycję terapeutów,
+    \item przypisywanie usług do terapeutów,
+    \item zarządzanie grafikami i wyjątkami.
+\end{itemize}
+
+\subsection{Staff}
+Pliki:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{app/api/staff\_appointments\_routes.py}
+    \item \texttt{app/services/staff\_appointment\_service.py}
+\end{itemize}
+
+Obsługuje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item listę wizyt do obsługi,
+    \item zmianę statusów wizyt,
+    \item dodanie lub edycję opisu konsultacji.
+\end{itemize}
+
+\section{Modele i relacje}
+
+Najważniejsze encje:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{User}
+    \item \texttt{Role}
+    \item \texttt{UserRole}
+    \item \texttt{TherapistProfile}
+    \item \texttt{Service}
+    \item \texttt{TherapistService}
+    \item \texttt{AvailabilityRule}
+    \item \texttt{AvailabilityException}
+    \item \texttt{Appointment}
+    \item \texttt{ConsultationSummary}
+    \item \texttt{Review}
+    \item \texttt{EmailNotification}
+\end{itemize}
+
+\subsection{Najważniejsze relacje}
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item użytkownik może mieć wiele ról,
+    \item terapeuta jest powiązany z użytkownikiem 1:1,
+    \item terapeuta może realizować wiele usług,
+    \item usługa może być realizowana przez wielu terapeutów,
+    \item terapeuta ma wiele reguł grafiku i wyjątków,
+    \item pacjent ma wiele wizyt,
+    \item wizyta należy do jednego pacjenta, jednej usługi i jednego terapeuty,
+    \item wizyta może mieć jedno podsumowanie konsultacji,
+    \item wizyta może mieć jedną opinię.
+\end{itemize}
+
+\subsection{Snapshoty w wizytach}
+
+W tabeli \texttt{Appointment} przechowywane są snapshoty:
+\begin{itemize}[leftmargin=1.2cm]
+    \item nazwy usługi,
+    \item opisu usługi,
+    \item długości wizyty,
+    \item ceny,
+    \item imienia i nazwiska terapeuty,
+    \item tytułu terapeuty.
+\end{itemize}
+
+Dzięki temu historia wizyt nie zmienia się po edycji katalogu usług lub profilu terapeuty.
+
+\section{Role i uprawnienia}
+
+Role:
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{PATIENT}
+    \item \texttt{THERAPIST}
+    \item \texttt{ADMIN}
+\end{itemize}
+
+\subsection{Pacjent}
+Może:
+\begin{itemize}[leftmargin=1.2cm]
+    \item się zarejestrować,
+    \item zalogować,
+    \item przeglądać usługi i terapeutów,
+    \item sprawdzać dostępność,
+    \item rezerwować wizytę,
+    \item anulować własną wizytę,
+    \item przeglądać własne wizyty i konsultacje,
+    \item dodawać opinię po zakończonej wizycie.
+\end{itemize}
+
+\subsection{Terapeuta}
+Może:
+\begin{itemize}[leftmargin=1.2cm]
+    \item przeglądać staffowe wizyty przypisane do siebie,
+    \item zmieniać statusy swoich wizyt,
+    \item dodawać opis konsultacji do obsługiwanych wizyt.
+\end{itemize}
+
+\subsection{Admin}
+Może:
+\begin{itemize}[leftmargin=1.2cm]
+    \item zarządzać usługami,
+    \item zarządzać terapeutami,
+    \item przypisywać usługi,
+    \item zarządzać grafikami,
+    \item przeglądać i edytować staffowe wizyty.
+\end{itemize}
+
+\section{Przepływ requestu}
+
+Typowy przepływ wygląda tak:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item request trafia do endpointu Flask w \texttt{app/api/...},
+    \item dane wejściowe są walidowane przez schemat w \texttt{app/schemas/...},
+    \item route wywołuje serwis z \texttt{app/services/...},
+    \item serwis wykonuje logikę biznesową,
+    \item w razie potrzeby serwis korzysta z repozytorium lub modeli SQLAlchemy,
+    \item wynik wraca do route,
+    \item odpowiedź jest opakowana do formatu:
+    \begin{itemize}
+        \item \texttt{data},
+        \item opcjonalnie \texttt{meta},
+        \item albo \texttt{error}.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Przykład: POST /api/v1/appointments}
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item route: \texttt{appointments\_routes.py}
+    \item schema: \texttt{AppointmentCreateSchema}
+    \item service: \texttt{AppointmentService.create(...)}
+\end{itemize}
+
+Serwis:
+\begin{itemize}[leftmargin=1.2cm]
+    \item sprawdza usługę,
+    \item sprawdza terapeutę,
+    \item sprawdza powiązanie terapeuta-usługa,
+    \item sprawdza, czy termin istnieje w dostępności,
+    \item sprawdza konflikty,
+    \item zapisuje wizytę,
+    \item tworzy powiadomienia email.
+\end{itemize}
+
+\section{Format odpowiedzi API}
+
+\subsection{Sukces}
+\begin{lstlisting}
+{
+  "data": {}
+}
+\end{lstlisting}
+
+\subsection{Sukces z paginacją}
+\begin{lstlisting}
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "pageSize": 10,
+    "total": 100
+  }
+}
+\end{lstlisting}
+
+\subsection{Błąd}
+\begin{lstlisting}
+{
+  "error": {
+    "code": "APPOINTMENT_SLOT_NOT_AVAILABLE",
+    "message": "Wybrany termin nie jest dostępny."
+  }
+}
+\end{lstlisting}
+
+Walidacja może zwracać też \texttt{details}.
+
+\section{Dostępne endpointy}
+
+\subsection{Public / patient}
+
+\subsubsection*{Auth}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{POST /api/v1/auth/register}
+    \item \texttt{POST /api/v1/auth/login}
+    \item \texttt{POST /api/v1/auth/refresh}
+    \item \texttt{POST /api/v1/auth/logout}
+    \item \texttt{GET /api/v1/users/me}
+\end{itemize}
+
+\subsubsection*{Katalog}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/services}
+    \item \texttt{GET /api/v1/services/<service\_id>}
+    \item \texttt{GET /api/v1/services/<service\_id>/therapists}
+    \item \texttt{GET /api/v1/therapists/<therapist\_id>}
+    \item \texttt{GET /api/v1/therapists/<therapist\_id>/reviews}
+\end{itemize}
+
+\subsubsection*{Dostępność}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/availability}
+\end{itemize}
+
+\subsubsection*{Wizyty}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{POST /api/v1/appointments}
+    \item \texttt{GET /api/v1/appointments/me}
+    \item \texttt{GET /api/v1/appointments/<appointment\_id>}
+    \item \texttt{POST /api/v1/appointments/<appointment\_id>/cancel}
+\end{itemize}
+
+\subsubsection*{Konsultacje i opinie}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/consultations/me}
+    \item \texttt{POST /api/v1/appointments/<appointment\_id>/review}
+\end{itemize}
+
+\subsection{Admin}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/admin/services}
+    \item \texttt{POST /api/v1/admin/services}
+    \item \texttt{PATCH /api/v1/admin/services/<service\_id>}
+    \item \texttt{GET /api/v1/admin/therapists}
+    \item \texttt{POST /api/v1/admin/therapists}
+    \item \texttt{PATCH /api/v1/admin/therapists/<therapist\_id>}
+    \item \texttt{POST /api/v1/admin/therapists/<therapist\_id>/services}
+    \item \texttt{DELETE /api/v1/admin/therapists/<therapist\_id>/services/<service\_id>}
+    \item \texttt{GET /api/v1/admin/therapists/<therapist\_id>/availability-rules}
+    \item \texttt{POST /api/v1/admin/therapists/<therapist\_id>/availability-rules}
+    \item \texttt{PATCH /api/v1/admin/availability-rules/<rule\_id>}
+    \item \texttt{DELETE /api/v1/admin/availability-rules/<rule\_id>}
+    \item \texttt{GET /api/v1/admin/therapists/<therapist\_id>/availability-exceptions}
+    \item \texttt{POST /api/v1/admin/therapists/<therapist\_id>/availability-exceptions}
+\end{itemize}
+
+\subsection{Staff}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/staff/appointments}
+    \item \texttt{PATCH /api/v1/staff/appointments/<appointment\_id>/status}
+    \item \texttt{PUT /api/v1/staff/appointments/<appointment\_id>/consultation-summary}
+\end{itemize}
+
+\subsection{Techniczne}
+\begin{itemize}[leftmargin=1.2cm]
+    \item \texttt{GET /api/v1/health}
+\end{itemize}
+
+\section{Jak uruchomić projekt lokalnie}
+
+\subsection{1. Wejdź do katalogu backend}
+\begin{lstlisting}
+cd backend
+\end{lstlisting}
+
+\subsection{2. Utwórz i aktywuj virtualenv}
+macOS / Linux:
+\begin{lstlisting}
+python3 -m venv .venv
+source .venv/bin/activate
+\end{lstlisting}
+
+\subsection{3. Zainstaluj zależności}
+\begin{lstlisting}
+pip install -r requirements.txt
+\end{lstlisting}
+
+\subsection{4. Ustaw zmienne środowiskowe}
+
+Utwórz plik \texttt{.env} albo ustaw zmienne w shellu.
+
+Przykład:
+\begin{lstlisting}
+FLASK_ENV=development
+DATABASE_URL=sqlite:///app.db
+SECRET_KEY=change-me
+JWT_SECRET_KEY=change-me-too
+CORS_ORIGINS=http://localhost:3000
+APP_TIMEZONE=Europe/Warsaw
+MAIL_SENDER=noreply@example.com
+MAIL_BACKEND=console
+\end{lstlisting}
+
+\subsection{5. Usuń starą bazę, jeśli chcesz startować od zera}
+\begin{lstlisting}
+rm -f app.db
+rm -f instance/app.db
+\end{lstlisting}
+
+\subsection{6. Uruchom backend}
+\begin{lstlisting}
+python run.py
+\end{lstlisting}
+
+\subsubsection*{Co robi run.py}
+\begin{itemize}[leftmargin=1.2cm]
+    \item tworzy aplikację Flask,
+    \item wykonuje \texttt{db.create\_all()},
+    \item uruchamia \texttt{seed\_database()},
+    \item startuje serwer developerski.
+\end{itemize}
+
+To rozwiązanie jest wygodne lokalnie. Na późniejszym etapie warto przejść na migracje.
+
+\section{Dane testowe seed}
+
+Przykładowe konta:
+\begin{itemize}[leftmargin=1.2cm]
+    \item admin: \texttt{admin@example.com} / \texttt{Admin123!}
+    \item terapeuta: \texttt{anna@example.com} / \texttt{Password123!}
+    \item terapeuta: \texttt{piotr@example.com} / \texttt{Password123!}
+    \item pacjent: \texttt{jan@example.com} / \texttt{Password123!}
+    \item pacjent: \texttt{ola@example.com} / \texttt{Password123!}
+\end{itemize}
+
+W seedzie są też:
+\begin{itemize}[leftmargin=1.2cm]
+    \item usługi,
+    \item profile terapeutów,
+    \item przypisania usług,
+    \item grafiki,
+    \item przykładowe wizyty,
+    \item przykładowa opinia,
+    \item powiadomienia email.
+\end{itemize}
+
+\section{Jak sprawdzić, czy backend działa}
+
+\subsection{1. Healthcheck}
+Wejdź w przeglądarce albo użyj curl:
+
+\begin{lstlisting}
+curl http://127.0.0.1:5000/api/v1/health
+\end{lstlisting}
+
+Oczekiwany wynik:
+\begin{lstlisting}
+{
+  "data": {
+    "status": "ok"
+  }
+}
+\end{lstlisting}
+
+\subsection{2. Lista usług}
+\begin{lstlisting}
+curl http://127.0.0.1:5000/api/v1/services
+\end{lstlisting}
+
+Powinieneś dostać listę usług.
+
+\subsection{3. Logowanie}
+\begin{lstlisting}
+curl -X POST http://127.0.0.1:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "jan@example.com",
+    "password": "Password123!"
+  }'
+\end{lstlisting}
+
+W odpowiedzi dostaniesz token.
+
+\subsection{4. Autoryzowany request}
+Podstaw \texttt{accessToken} do:
+\begin{lstlisting}
+curl http://127.0.0.1:5000/api/v1/users/me \
+  -H "Authorization: Bearer <accessToken>"
+\end{lstlisting}
+
+\section{Przykładowy manualny test przepływu pacjenta}
+
+\begin{enumerate}[leftmargin=1.2cm]
+    \item \texttt{POST /auth/login}
+    \item \texttt{GET /services}
+    \item pobierz \texttt{service\_id}
+    \item \texttt{GET /services/<service\_id>/therapists}
+    \item pobierz \texttt{therapist\_id}
+    \item \texttt{GET /availability?serviceId=...\&therapistId=...\&from=...\&to=...}
+    \item wybierz \texttt{startAt}
+    \item \texttt{POST /appointments}
+    \item \texttt{GET /appointments/me}
+    \item \texttt{POST /appointments/<id>/cancel}
+\end{enumerate}
+
+To jest podstawowy flow, który powinien działać przed podpinaniem frontendu.
+
+\section{Jak uruchomić testy}
+
+W katalogu backend:
+
+\begin{lstlisting}
+pytest tests -q
+\end{lstlisting}
+
+\subsection{Co testujemy}
+Testy obejmują:
+\begin{itemize}[leftmargin=1.2cm]
+    \item auth,
+    \item katalog,
+    \item dostępność,
+    \item wizyty,
+    \item review/admin/staff.
+\end{itemize}
+
+\subsection{Jak działają testy}
+\begin{itemize}[leftmargin=1.2cm]
+    \item testy używają konfiguracji \texttt{testing},
+    \item baza jest tworzona w pamięci,
+    \item dane seedujące są ładowane automatycznie w fixture.
+\end{itemize}
+
+\section{Najważniejsze miejsca do dalszej rozbudowy}
+
+\subsection{Backend}
+Najczęstsze miejsca rozwoju:
+\begin{itemize}[leftmargin=1.2cm]
+    \item nowe endpointy w \texttt{app/api/},
+    \item nowa logika w \texttt{app/services/},
+    \item nowe walidacje w \texttt{app/schemas/},
+    \item rozszerzenia modeli w \texttt{app/models/},
+    \item dodatkowe testy w \texttt{tests/}.
+\end{itemize}
+
+\subsection{Frontend}
+Frontend powinien korzystać głównie z tych endpointów:
+\begin{itemize}[leftmargin=1.2cm]
+    \item auth,
+    \item services,
+    \item therapists,
+    \item availability,
+    \item appointments,
+    \item consultations,
+    \item reviews.
+\end{itemize}
+
+Najpierw warto podłączyć:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item login/register,
+    \item listę usług,
+    \item terapeutów,
+    \item dostępność,
+    \item rezerwację,
+    \item moje wizyty.
+\end{enumerate}
+
+\section{Ważne uwagi techniczne}
+
+\subsection{1. SQLite jest tymczasowe}
+Dobre do developmentu lokalnego, ale nie jest docelowym rozwiązaniem dla rezerwacji terminów na większą skalę.
+
+\subsection{2. db.create\_all() jest developerskie}
+Obecnie wygodne, ale później powinno zostać zastąpione przez migracje.
+
+\subsection{3. Logika biznesowa powinna trafiać do serwisów}
+Nie rozbudowuj route'ów o skomplikowaną logikę.
+
+\subsection{4. Seed jest częścią rozwoju lokalnego}
+Jeśli dodajesz nowe moduły, zadbaj o aktualizację \texttt{seed\_data.py}, żeby inni mogli łatwo uruchomić projekt.
+
+\subsection{5. Testy trzeba rozwijać razem z backendem}
+Każdy nowy endpoint biznesowy powinien dostać test.
+
+\section{Rekomendowany sposób pracy nad backendem}
+
+Przy dodawaniu nowej funkcjonalności najlepiej iść w tej kolejności:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item doprecyzować model danych,
+    \item dodać lub poprawić schemat wejścia/wyjścia,
+    \item zaimplementować logikę w serwisie,
+    \item wystawić endpoint w \texttt{api/},
+    \item dodać testy,
+    \item zaktualizować seed, jeśli potrzeba.
+\end{enumerate}
+
+To pozwala zachować porządek i przewidywalność kodu.
+
+\section{Krótka lista startowa dla nowego programisty}
+
+Jeśli wchodzisz do projektu po raz pierwszy:
+\begin{enumerate}[leftmargin=1.2cm]
+    \item sklonuj repo,
+    \item przejdź do \texttt{backend/},
+    \item utwórz virtualenv,
+    \item zainstaluj zależności,
+    \item ustaw \texttt{.env},
+    \item usuń starą bazę SQLite,
+    \item uruchom \texttt{python run.py},
+    \item sprawdź \texttt{/api/v1/health},
+    \item zaloguj się kontem z seeda,
+    \item przejdź podstawowy flow pacjenta,
+    \item uruchom \texttt{pytest tests -q}.
+\end{enumerate}
+
+Po tych krokach powinieneś mieć działające lokalne środowisko i rozumieć podstawowy przepływ aplikacji.
+
+\end{document}

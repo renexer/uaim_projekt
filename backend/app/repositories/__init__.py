@@ -1,0 +1,6 @@
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.availability_repository import AvailabilityRepository
+from app.repositories.review_repository import ReviewRepository
+from app.repositories.service_repository import ServiceRepository
+from app.repositories.therapist_repository import TherapistRepository
+from app.repositories.user_repository import UserRepository
