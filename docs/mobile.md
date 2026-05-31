@@ -293,7 +293,7 @@ Alternatywnie z terminala:
 
 ```bash
 cd uaim_projekt
-./gradlew :mobile:assembleDebug
+./gradlew :app:assembleDebug
 ```
 
 Na Windows:

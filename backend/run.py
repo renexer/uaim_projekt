@@ -16,6 +16,6 @@ with app.app_context():
 if __name__ == "__main__":
     app.run(
         host=os.getenv("FLASK_RUN_HOST", "0.0.0.0"),
-        port=int(os.getenv("FLASK_RUN_PORT", "5000")),
+        port=int(os.getenv("FLASK_RUN_PORT", "8080")),
         debug=os.getenv("FLASK_ENV", "development") == "development",
     )

@@ -1,4 +1,4 @@
-export const API_URL = (process.env.REACT_APP_API_URL || "http://127.0.0.1:5000/api/v1").replace(/\/$/, "");
+export const API_URL = (process.env.REACT_APP_API_URL || "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(message, status, details) {
