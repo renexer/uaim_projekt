@@ -454,7 +454,7 @@ Przykładowe adresy w środowisku Docker:
 
 ```text
 Frontend: http://localhost:3000
-Backend healthcheck: http://localhost:5000/api/v1/health
+Backend healthcheck: http://localhost:8080/api/v1/health
 API przez frontend/NGINX: http://localhost:3000/api/v1/health
 ```
 
@@ -712,7 +712,7 @@ docker compose up --build
 
 ```text
 Frontend: http://localhost:3000
-Backend healthcheck: http://localhost:5000/api/v1/health
+Backend healthcheck: http://localhost:8080/api/v1/health
 ```
 
 4. Zatrzymać kontenery:

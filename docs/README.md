@@ -109,7 +109,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Po starcie backend odpowiada pod `http://localhost:5000/api/v1/health`, a frontend pod `http://localhost:3000`.
+Po starcie backend odpowiada pod `http://localhost:8080/api/v1/health`, a frontend pod `http://localhost:3000`.
 
 ## 6. Uruchamianie lokalne
 
@@ -1807,7 +1807,7 @@ Testy integracyjne używają dynamicznie znalezionych slotów dostępności, wi�
 #### Health
 
 ```bash
-curl http://localhost:5000/api/v1/health
+curl http://localhost:8080/api/v1/health
 ```
 
 Oczekiwane:
@@ -1819,7 +1819,7 @@ Oczekiwane:
 #### Login pacjenta
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"jan@example.com","password":"Password123!"}'
 ```
@@ -1829,25 +1829,25 @@ Z odpowiedzi zapisz `accessToken`.
 #### Lista usług
 
 ```bash
-curl http://localhost:5000/api/v1/services
+curl http://localhost:8080/api/v1/services
 ```
 
 #### Terapeuci dla usługi
 
 ```bash
-curl http://localhost:5000/api/v1/services/<serviceId>/therapists
+curl http://localhost:8080/api/v1/services/<serviceId>/therapists
 ```
 
 #### Dostępność
 
 ```bash
-curl 'http://localhost:5000/api/v1/availability?serviceId=<serviceId>&therapistId=<therapistId>&from=2026-05-01T00:00:00%2B02:00&to=2026-05-14T23:59:59%2B02:00'
+curl 'http://localhost:8080/api/v1/availability?serviceId=<serviceId>&therapistId=<therapistId>&from=2026-05-01T00:00:00%2B02:00&to=2026-05-14T23:59:59%2B02:00'
 ```
 
 #### Rezerwacja
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/appointments \
+curl -X POST http://localhost:8080/api/v1/appointments \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <accessToken>' \
   -d '{"serviceId":"<serviceId>","therapistId":"<therapistId>","startAt":"<slot.startAt>"}'
@@ -1856,14 +1856,14 @@ curl -X POST http://localhost:5000/api/v1/appointments \
 #### Moje wizyty
 
 ```bash
-curl http://localhost:5000/api/v1/appointments/me \
+curl http://localhost:8080/api/v1/appointments/me \
   -H 'Authorization: Bearer <accessToken>'
 ```
 
 #### Anulowanie
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/appointments/<appointmentId>/cancel \
+curl -X POST http://localhost:8080/api/v1/appointments/<appointmentId>/cancel \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <accessToken>' \
   -d '{"reason":"Zmiana planów"}'
@@ -1874,7 +1874,7 @@ curl -X POST http://localhost:5000/api/v1/appointments/<appointmentId>/cancel \
 Login admina:
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.com","password":"Admin123!"}'
 ```
@@ -1882,14 +1882,14 @@ curl -X POST http://localhost:5000/api/v1/auth/login \
 Lista wizyt staff:
 
 ```bash
-curl http://localhost:5000/api/v1/staff/appointments \
+curl http://localhost:8080/api/v1/staff/appointments \
   -H 'Authorization: Bearer <adminAccessToken>'
 ```
 
 Utworzenie usługi:
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/admin/services \
+curl -X POST http://localhost:8080/api/v1/admin/services \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <adminAccessToken>' \
   -d '{"code":"CONSULT_80","name":"Konsultacja 80 min","description":"Dłuższa konsultacja.","durationMinutes":80,"basePrice":"300.00","currency":"PLN","isActive":true}'
@@ -1898,7 +1898,7 @@ curl -X POST http://localhost:5000/api/v1/admin/services \
 Zmiana statusu wizyty:
 
 ```bash
-curl -X PATCH http://localhost:5000/api/v1/staff/appointments/<appointmentId>/status \
+curl -X PATCH http://localhost:8080/api/v1/staff/appointments/<appointmentId>/status \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <adminAccessToken>' \
   -d '{"status":"COMPLETED"}'
@@ -1907,7 +1907,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/appointments/<appointmentId>/st
 Dodanie opisu konsultacji:
 
 ```bash
-curl -X PUT http://localhost:5000/api/v1/staff/appointments/<appointmentId>/consultation-summary \
+curl -X PUT http://localhost:8080/api/v1/staff/appointments/<appointmentId>/consultation-summary \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <adminAccessToken>' \
   -d '{"summaryText":"Wizyta zakończona i opisana przez terapeutę."}'

@@ -172,7 +172,7 @@ python run.py
 Backend będzie dostępny pod:
 
 ```text
-http://localhost:5000/api/v1/health
+http://localhost:8080/api/v1/health
 ```
 
 ## Uruchomienie z Dockerem
