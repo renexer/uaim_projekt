@@ -1,166 +1,248 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { useAuth } from "../AuthContext";
 import LoadingState, { EmptyState, ErrorState } from "../components/StateBlocks";
-import { availabilityRange, formatDateTime, serviceLabel } from "./pageUtils";
+
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("pl-PL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function availabilityRange(days = 21) {
+  const from = new Date();
+  const to = new Date();
+  to.setDate(to.getDate() + days);
+
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  };
+}
+
+function groupSlotsByDay(slots) {
+  const map = new Map();
+
+  slots.forEach((slot) => {
+    const dateKey = new Date(slot.startAt).toLocaleDateString("pl-PL", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+    });
+
+    if (!map.has(dateKey)) {
+      map.set(dateKey, []);
+    }
+    map.get(dateKey).push(slot);
+  });
+
+  return Array.from(map.entries()).map(([day, values]) => ({
+    day,
+    slots: values,
+  }));
+}
 
 export default function BookingPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [services, setServices] = useState([]);
   const [therapists, setTherapists] = useState([]);
   const [availability, setAvailability] = useState(null);
+
+  const [serviceId, setServiceId] = useState("");
+  const [therapistId, setTherapistId] = useState("");
+
   const [loading, setLoading] = useState(true);
-  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
 
-  const serviceId = searchParams.get("serviceId") || "";
-  const therapistId = searchParams.get("therapistId") || "";
-  const selectedSlot = searchParams.get("slot") || "";
+  useEffect(() => {
+    let ignore = false;
 
-  const selectedService = useMemo(() => services.find((service) => service.id === serviceId), [services, serviceId]);
-  const selectedTherapist = useMemo(() => therapists.find((therapist) => therapist.id === therapistId), [therapists, therapistId]);
-
-  function updateParam(name, value) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(name, value);
-    else next.delete(name);
-    if (name === "serviceId") {
-      next.delete("therapistId");
-      next.delete("slot");
-    }
-    if (name === "therapistId") next.delete("slot");
-    setSearchParams(next);
-  }
-
-  const loadServices = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await api.services();
-      setServices(data);
-      if (!serviceId && data[0]) {
-        setSearchParams({ serviceId: data[0].id }, { replace: true });
+    async function loadServices() {
+      setLoading(true);
+      try {
+        const data = await api.services();
+        if (!ignore) {
+          setServices(data);
+          if (data[0]) {
+            setServiceId(data[0].id);
+          }
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Nie udało się pobrać usług.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      setError(err.message || "Nie udało się pobrać usług.");
-    } finally {
-      setLoading(false);
     }
-  }, [serviceId, setSearchParams]);
 
-  const loadTherapistsAndSlots = useCallback(async () => {
-    if (!serviceId) return;
-    setSlotsLoading(true);
-    setError("");
-    setMessage("");
-    try {
-      const therapistsData = await api.therapistsForService(serviceId);
-      setTherapists(therapistsData);
-      const { from, to } = availabilityRange();
-      const availabilityData = await api.availability({ serviceId, therapistId: therapistId || null, from, to });
-      setAvailability(availabilityData);
-    } catch (err) {
-      setError(err.message || "Nie udało się pobrać dostępnych terminów.");
-      setAvailability(null);
-    } finally {
-      setSlotsLoading(false);
+    loadServices();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadTherapists() {
+      if (!serviceId) return;
+
+      try {
+        const data = await api.therapists({ serviceId });
+        if (!ignore) {
+          setTherapists(data);
+          setTherapistId(data[0]?.id || "");
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Nie udało się pobrać terapeutów.");
+        }
+      }
     }
+
+    loadTherapists();
+    return () => {
+      ignore = true;
+    };
+  }, [serviceId]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadAvailability() {
+      if (!serviceId || !therapistId) return;
+
+      setAvailabilityLoading(true);
+      setError("");
+
+      try {
+        const { from, to } = availabilityRange();
+        const data = await api.availability({ serviceId, therapistId, from, to });
+        if (!ignore) {
+          setAvailability(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Nie udało się pobrać dostępnych terminów.");
+        }
+      } finally {
+        if (!ignore) {
+          setAvailabilityLoading(false);
+        }
+      }
+    }
+
+    loadAvailability();
+    return () => {
+      ignore = true;
+    };
   }, [serviceId, therapistId]);
 
-  useEffect(() => { loadServices(); }, [loadServices]);
-  useEffect(() => { loadTherapistsAndSlots(); }, [loadTherapistsAndSlots]);
+  const currentService = useMemo(
+    () => services.find((item) => item.id === serviceId),
+    [services, serviceId]
+  );
 
-  async function confirmBooking(event) {
-    event.preventDefault();
+  const currentTherapist = useMemo(
+    () => therapists.find((item) => item.id === therapistId),
+    [therapists, therapistId]
+  );
+
+  const slots = availability?.items?.[0]?.slots || [];
+  const groupedSlots = groupSlotsByDay(slots);
+
+  async function handleBooking(slot) {
     setError("");
     setMessage("");
-    if (!isAuthenticated) {
-      navigate("/login", { state: { from: { pathname: "/booking" } } });
-      return;
-    }
-    if (!serviceId || !therapistId || !selectedSlot) {
-      setError("Wybierz usługę, terapeutę oraz termin.");
-      return;
-    }
+
     try {
-      await api.createAppointment({ serviceId, therapistId, startAt: selectedSlot });
-      setMessage("Wizyta została zarezerwowana. Potwierdzenie znajduje się w sekcji Moje wizyty.");
-      const next = new URLSearchParams(searchParams);
-      next.delete("slot");
-      setSearchParams(next, { replace: true });
-      await loadTherapistsAndSlots();
+      await api.createAppointment({
+        serviceId,
+        therapistId,
+        startAt: slot.startAt,
+      });
+
+      setMessage("Wizyta została zarezerwowana.");
+      const { from, to } = availabilityRange();
+      const refreshed = await api.availability({ serviceId, therapistId, from, to });
+      setAvailability(refreshed);
     } catch (err) {
       setError(err.message || "Nie udało się zarezerwować wizyty.");
     }
   }
 
   if (loading) return <LoadingState />;
-  if (error && !services.length) return <ErrorState message={error} onRetry={loadServices} />;
-
-  const items = availability?.items || [];
-  const selectedItem = items.find((item) => item.therapist.id === therapistId);
-  const availableSlots = selectedItem ? selectedItem.slots : items.flatMap((item) => item.slots.map((slot) => ({ ...slot, therapist: item.therapist })));
+  if (error && !services.length) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
 
   return (
-    <section className="page-section two-column booking-layout">
-      <form className="panel form" onSubmit={confirmBooking}>
-        <p className="eyebrow">Rezerwacja</p>
-        <h1>Umów wizytę</h1>
-        <label>
+    <section className="page-section booking-layout">
+      <section className="panel booking-sidebar">
+        <h1>Rezerwacja wizyty</h1>
+
+        <label className="inline-label">
           Usługa
-          <select value={serviceId} onChange={(event) => updateParam("serviceId", event.target.value)}>
-            {services.map((service) => <option key={service.id} value={service.id}>{serviceLabel(service)}</option>)}
+          <select value={serviceId} onChange={(event) => setServiceId(event.target.value)}>
+            {services.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name}
+              </option>
+            ))}
           </select>
         </label>
-        <label>
+
+        <label className="inline-label">
           Terapeuta
-          <select value={therapistId} onChange={(event) => updateParam("therapistId", event.target.value)}>
-            <option value="">Dowolny dostępny terapeuta</option>
-            {therapists.map((therapist) => <option key={therapist.id} value={therapist.id}>{therapist.fullName} — {therapist.title}</option>)}
+          <select value={therapistId} onChange={(event) => setTherapistId(event.target.value)}>
+            {therapists.map((therapist) => (
+              <option key={therapist.id} value={therapist.id}>
+                {therapist.fullName}
+              </option>
+            ))}
           </select>
         </label>
+
         <div className="booking-summary">
-          <strong>Podsumowanie</strong>
-          <p>{selectedService ? selectedService.name : "Wybierz usługę"}</p>
-          <p>{selectedTherapist ? selectedTherapist.fullName : "Terapeuta wybrany na podstawie slotu"}</p>
-          <p>{selectedSlot ? formatDateTime(selectedSlot) : "Wybierz termin z listy"}</p>
+          <h2>Podsumowanie wyboru</h2>
+          <p><strong>Usługa:</strong> {currentService?.name || "—"}</p>
+          <p><strong>Terapeuta:</strong> {currentTherapist?.fullName || "—"}</p>
+          <p><strong>Czas trwania:</strong> {currentService?.durationMinutes || "—"} min</p>
+          <p><strong>Cena:</strong> {currentService?.basePrice || "—"} {currentService?.currency || ""}</p>
         </div>
-        {error && <div className="form-error" role="alert">{error}</div>}
-        {message && <div className="form-success" role="status">{message}</div>}
-        <button className="btn btn-primary" type="submit">Potwierdź rezerwację</button>
-        {!isAuthenticated && <p className="muted">Do rezerwacji wymagane jest <Link to="/login">logowanie</Link>.</p>}
-      </form>
+      </section>
 
       <section className="panel">
-        <h2>Dostępne terminy</h2>
-        {slotsLoading ? <LoadingState message="Pobieranie wolnych terminów..." /> : (
-          availableSlots.length ? (
-            <div className="slot-grid">
-              {availableSlots.slice(0, 30).map((slot) => {
-                const slotTherapist = slot.therapist || selectedItem?.therapist;
-                return (
-                  <button
-                    type="button"
-                    className={`slot-button ${selectedSlot === slot.startAt ? "selected" : ""}`}
-                    key={`${slotTherapist?.id || therapistId}-${slot.startAt}`}
-                    onClick={() => {
-                      const next = new URLSearchParams(searchParams);
-                      if (slotTherapist?.id) next.set("therapistId", slotTherapist.id);
-                      next.set("slot", slot.startAt);
-                      setSearchParams(next);
-                    }}
-                  >
-                    <span>{formatDateTime(slot.startAt)}</span>
-                    {slotTherapist && <small>{slotTherapist.fullName}</small>}
-                  </button>
-                );
-              })}
-            </div>
-          ) : <EmptyState message="Brak dostępnych terminów w najbliższych 21 dniach." />
+        <h2>Wolne terminy w najbliższych 21 dniach</h2>
+
+        {error && <div className="form-error">{error}</div>}
+        {message && <div className="form-success">{message}</div>}
+
+        {availabilityLoading ? (
+          <LoadingState message="Pobieranie terminów..." />
+        ) : !groupedSlots.length ? (
+          <EmptyState message="Brak wolnych terminów dla wybranego terapeuty i usługi." />
+        ) : (
+          <div className="stack">
+            {groupedSlots.map((group) => (
+              <article key={group.day} className="panel slot-day-card">
+                <h3>{group.day}</h3>
+                <div className="slot-grid">
+                  {group.slots.map((slot) => (
+                    <button
+                      key={slot.startAt}
+                      className="slot-button"
+                      onClick={() => handleBooking(slot)}
+                    >
+                      {formatDateTime(slot.startAt)}
+                    </button>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
         )}
       </section>
     </section>

@@ -1,75 +1,140 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import LoadingState, { EmptyState, ErrorState } from "../components/StateBlocks";
-import { loadAllTherapists } from "./pageUtils";
 
 export default function TherapistsPage() {
-  const { serviceId } = useParams();
+  const [services, setServices] = useState([]);
   const [therapists, setTherapists] = useState([]);
-  const [service, setService] = useState(null);
+
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadTherapists = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      if (serviceId) {
-        const [serviceData, therapistsData] = await Promise.all([
-          api.service(serviceId),
-          api.therapistsForService(serviceId),
-        ]);
-        setService(serviceData);
-        setTherapists(therapistsData.map((therapist) => ({ ...therapist, services: [{ id: serviceId, name: serviceData.name }] })));
-      } else {
-        setService(null);
-        setTherapists(await loadAllTherapists(api));
-      }
-    } catch (err) {
-      setError(err.message || "Nie udało się pobrać terapeutów.");
-    } finally {
-      setLoading(false);
-    }
-  }, [serviceId]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
-    loadTherapists();
-  }, [loadTherapists]);
+    let ignore = false;
+
+    async function load() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const [servicesData, therapistsData] = await Promise.all([
+          api.services(),
+          api.therapists({
+            serviceId: selectedServiceId || undefined,
+            q: searchQuery || undefined,
+          }),
+        ]);
+
+        if (!ignore) {
+          setServices(servicesData);
+          setTherapists(therapistsData);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Nie udało się pobrać terapeutów.");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [selectedServiceId, searchQuery]);
+
+  const selectedService = useMemo(
+    () => services.find((item) => item.id === selectedServiceId),
+    [services, selectedServiceId]
+  );
 
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} onRetry={loadTherapists} />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
 
   return (
     <section className="page-section">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Specjaliści</p>
-          <h1>{service ? `Terapeuci: ${service.name}` : "Lista terapeutów"}</h1>
+          <p className="eyebrow">Zespół</p>
+          <h1>Terapeuci i terapeutki</h1>
+          <p className="muted">
+            Wyszukaj specjalistę po usłudze, tytule lub opisie doświadczenia.
+          </p>
         </div>
-        <Link className="btn btn-light" to="/services">Powrót do usług</Link>
       </div>
-      {!therapists.length ? <EmptyState message="Brak terapeutów dla wybranych kryteriów." /> : (
+
+      <section className="panel">
+        <div className="filter-bar">
+          <label className="inline-label compact">
+            Usługa
+            <select
+              value={selectedServiceId}
+              onChange={(event) => setSelectedServiceId(event.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              {services.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="inline-label compact">
+            Szukaj
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="np. stres, psycholog, młodzież"
+            />
+          </label>
+        </div>
+
+        {selectedService ? (
+          <p className="muted">
+            Aktywny filtr: <strong>{selectedService.name}</strong>
+          </p>
+        ) : null}
+      </section>
+
+      {!therapists.length ? (
+        <EmptyState message="Brak terapeutów spełniających wybrane kryteria." />
+      ) : (
         <div className="card-grid">
-          {therapists.map((therapist) => {
-            const primaryService = therapist.services?.[0];
-            return (
-              <article className="card therapist-card" key={therapist.id}>
-                <div className="avatar">{therapist.fullName?.slice(0, 1) || "T"}</div>
-                <div>
-                  <h2>{therapist.fullName}</h2>
-                  <p className="muted">{therapist.title} · {therapist.experienceYears || 0} lat doświadczenia</p>
-                  <p>{therapist.bio}</p>
-                  <p className="rating">★ {therapist.averageRating || "0.0"} / 5 ({therapist.reviewsCount || 0} opinii)</p>
-                  <p className="muted">Usługi: {therapist.services?.map((item) => item.name).join(", ")}</p>
-                  <div className="card-actions">
-                    <Link className="btn btn-outline" to={`/therapists/${therapist.id}${primaryService ? `?serviceId=${primaryService.id}` : ""}`}>Szczegóły</Link>
-                    {primaryService && <Link className="btn btn-primary" to={`/booking?serviceId=${primaryService.id}&therapistId=${therapist.id}`}>Wybierz termin</Link>}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {therapists.map((therapist) => (
+            <article className="panel therapist-card" key={therapist.id}>
+              <div className="avatar large">{therapist.fullName?.slice(0, 1) || "T"}</div>
+
+              <h2>{therapist.fullName}</h2>
+              <p className="muted">{therapist.title}</p>
+              <p>{therapist.bio}</p>
+
+              <div className="card-meta">
+                <span>★ {therapist.averageRating || "0.0"}</span>
+                <span>{therapist.experienceYears || 0} lat doświadczenia</span>
+              </div>
+
+              <Link className="btn btn-primary" to={`/therapists/${therapist.id}`}>
+                Zobacz profil i terminy
+              </Link>
+            </article>
+          ))}
         </div>
       )}
     </section>

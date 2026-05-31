@@ -5,31 +5,48 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authStorage.getUser());
-  const [isAuthLoading, setIsAuthLoading] = useState(Boolean(authStorage.getToken()));
+  const [isAuthLoading, setIsAuthLoading] = useState(
+    Boolean(authStorage.getToken() || authStorage.getRefreshToken())
+  );
 
   useEffect(() => {
     let ignore = false;
 
     async function hydrateUser() {
-      if (!authStorage.getToken()) {
+      if (!authStorage.getToken() && !authStorage.getRefreshToken()) {
         setIsAuthLoading(false);
         return;
       }
+
       try {
+        if (!authStorage.getToken() && authStorage.getRefreshToken()) {
+          await api.refreshSession();
+        }
+
         const currentUser = await api.me();
+
         if (!ignore) {
-          authStorage.saveSession({ accessToken: authStorage.getToken(), refreshToken: authStorage.getRefreshToken(), user: currentUser });
+          authStorage.saveSession({
+            accessToken: authStorage.getToken(),
+            refreshToken: authStorage.getRefreshToken(),
+            user: currentUser,
+          });
           setUser(currentUser);
         }
       } catch {
         authStorage.clear();
-        if (!ignore) setUser(null);
+        if (!ignore) {
+          setUser(null);
+        }
       } finally {
-        if (!ignore) setIsAuthLoading(false);
+        if (!ignore) {
+          setIsAuthLoading(false);
+        }
       }
     }
 
     hydrateUser();
+
     return () => {
       ignore = true;
     };
@@ -37,7 +54,6 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     const session = await api.login(email, password);
-    // Po poprawnym logowaniu zapisujemy token JWT oraz podstawowe dane użytkownika.
     authStorage.saveSession(session);
     setUser(session.user);
     return session.user;
@@ -47,9 +63,17 @@ export function AuthProvider({ children }) {
     return api.register(payload);
   }
 
-  function logout() {
-    authStorage.clear();
-    setUser(null);
+  async function logout() {
+    try {
+      if (authStorage.getToken()) {
+        await api.logout();
+      }
+    } catch {
+      // świadomie ignorujemy błąd logout po stronie API
+    } finally {
+      authStorage.clear();
+      setUser(null);
+    }
   }
 
   const hasAnyRole = useCallback((roles = []) => {
@@ -57,7 +81,18 @@ export function AuthProvider({ children }) {
     return roles.some((role) => user?.roles?.includes(role));
   }, [user]);
 
-  const value = useMemo(() => ({ user, isAuthenticated: Boolean(user && authStorage.getToken()), isAuthLoading, login, register, logout, hasAnyRole }), [user, isAuthLoading, hasAnyRole]);
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user && authStorage.getToken()),
+      isAuthLoading,
+      login,
+      register,
+      logout,
+      hasAnyRole,
+    }),
+    [user, isAuthLoading, hasAnyRole]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

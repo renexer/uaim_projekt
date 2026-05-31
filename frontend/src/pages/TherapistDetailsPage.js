@@ -1,42 +1,58 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
+import Pagination from "../components/Pagination";
 import LoadingState, { EmptyState, ErrorState } from "../components/StateBlocks";
-import { availabilityRange, formatDateTime } from "./pageUtils";
+import { availabilityRange, formatDateTime, formatMoney, loadAllTherapists } from "./pageUtils";
 
 export default function TherapistDetailsPage() {
   const { therapistId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
   const selectedServiceId = searchParams.get("serviceId") || "";
+
   const [therapist, setTherapist] = useState(null);
-  const [reviews, setReviews] = useState([]);
   const [services, setServices] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsMeta, setReviewsMeta] = useState(null);
+  const [reviewsPage, setReviewsPage] = useState(1);
   const [availability, setAvailability] = useState(null);
+
   const [loading, setLoading] = useState(true);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+
   const [error, setError] = useState("");
   const [bookingError, setBookingError] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState("");
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
 
-  const selectedService = useMemo(() => services.find((service) => service.id === selectedServiceId), [services, selectedServiceId]);
+  const selectedService = useMemo(
+    () => services.find((service) => service.id === selectedServiceId),
+    [services, selectedServiceId]
+  );
 
-  const loadDetails = useCallback(async () => {
+  const loadBase = useCallback(async () => {
     setLoading(true);
     setError("");
+
     try {
-      const [therapistData, reviewsData, servicesData] = await Promise.all([
+      const [therapistData, allTherapists] = await Promise.all([
         api.therapist(therapistId),
-        api.reviews(therapistId),
-        api.services(),
+        loadAllTherapists(api),
       ]);
+
+      const aggregatedTherapist = allTherapists.find((item) => item.id === therapistId);
+      const therapistServices = aggregatedTherapist?.services || [];
+
       setTherapist(therapistData);
-      setReviews(reviewsData);
-      setServices(servicesData);
-      if (!selectedServiceId && servicesData[0]) {
-        setSearchParams({ serviceId: servicesData[0].id }, { replace: true });
+      setServices(therapistServices);
+
+      if (!selectedServiceId && therapistServices[0]) {
+        setSearchParams({ serviceId: therapistServices[0].id }, { replace: true });
       }
     } catch (err) {
       setError(err.message || "Nie udało się pobrać danych terapeuty.");
@@ -45,13 +61,37 @@ export default function TherapistDetailsPage() {
     }
   }, [therapistId, selectedServiceId, setSearchParams]);
 
+  const loadReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    try {
+      const payload = await api.reviews(therapistId, { page: reviewsPage, pageSize: 5 });
+      setReviews(payload.items);
+      setReviewsMeta(payload.meta);
+    } catch (err) {
+      setError(err.message || "Nie udało się pobrać opinii.");
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [therapistId, reviewsPage]);
+
   const loadAvailability = useCallback(async () => {
-    if (!selectedServiceId) return;
+    if (!selectedServiceId) {
+      setAvailability(null);
+      return;
+    }
+
     setAvailabilityLoading(true);
     setBookingError("");
-    const { from, to } = availabilityRange();
+
     try {
-      setAvailability(await api.availability({ serviceId: selectedServiceId, therapistId, from, to }));
+      const { from, to } = availabilityRange();
+      const payload = await api.availability({
+        serviceId: selectedServiceId,
+        therapistId,
+        from,
+        to,
+      });
+      setAvailability(payload);
     } catch (err) {
       setBookingError(err.message || "Nie udało się pobrać terminów.");
       setAvailability(null);
@@ -61,8 +101,12 @@ export default function TherapistDetailsPage() {
   }, [selectedServiceId, therapistId]);
 
   useEffect(() => {
-    loadDetails();
-  }, [loadDetails]);
+    loadBase();
+  }, [loadBase]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   useEffect(() => {
     loadAvailability();
@@ -71,12 +115,25 @@ export default function TherapistDetailsPage() {
   async function bookSlot(slot) {
     setBookingError("");
     setBookingSuccess("");
+
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: { pathname: `/therapists/${therapistId}` } } });
+      navigate("/login", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+          },
+        },
+      });
       return;
     }
+
     try {
-      await api.createAppointment({ serviceId: selectedServiceId, therapistId, startAt: slot.startAt });
+      await api.createAppointment({
+        serviceId: selectedServiceId,
+        therapistId,
+        startAt: slot.startAt,
+      });
       setBookingSuccess("Wizyta została zarezerwowana.");
       await loadAvailability();
     } catch (err) {
@@ -84,8 +141,14 @@ export default function TherapistDetailsPage() {
     }
   }
 
+  function handleServiceChange(event) {
+    const next = new URLSearchParams(searchParams);
+    next.set("serviceId", event.target.value);
+    setSearchParams(next);
+  }
+
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} onRetry={loadDetails} />;
+  if (error && !therapist) return <ErrorState message={error} onRetry={loadBase} />;
 
   const slots = availability?.items?.[0]?.slots || [];
 
@@ -96,50 +159,94 @@ export default function TherapistDetailsPage() {
         <h1>{therapist?.fullName}</h1>
         <p className="muted">{therapist?.title}</p>
         <p>{therapist?.bio}</p>
+
         <dl className="meta-list">
-          <div><dt>Doświadczenie</dt><dd>{therapist?.experienceYears || 0} lat</dd></div>
-          <div><dt>Ocena</dt><dd>★ {therapist?.averageRating || "0.0"} ({therapist?.reviewsCount || 0})</dd></div>
+          <div>
+            <dt>Doświadczenie</dt>
+            <dd>{therapist?.experienceYears || 0} lat</dd>
+          </div>
+          <div>
+            <dt>Ocena</dt>
+            <dd>★ {therapist?.averageRating || "0.0"} ({therapist?.reviewsCount || 0})</dd>
+          </div>
         </dl>
-        <Link className="btn btn-light" to="/therapists">Wróć do listy</Link>
+
+        <Link className="btn btn-light" to="/therapists">
+          Wróć do listy
+        </Link>
       </article>
 
       <div className="stack">
         <section className="panel">
           <h2>Dostępne terminy</h2>
-          <label className="inline-label">
-            Usługa
-            <select value={selectedServiceId} onChange={(event) => setSearchParams({ serviceId: event.target.value })}>
-              {services.map((service) => <option value={service.id} key={service.id}>{service.name}</option>)}
-            </select>
-          </label>
-          {selectedService && <p className="muted">{selectedService.durationMinutes} min · {selectedService.basePrice} {selectedService.currency}</p>}
-          {bookingError && <div className="form-error" role="alert">{bookingError}</div>}
-          {bookingSuccess && <div className="form-success" role="status">{bookingSuccess}</div>}
-          {availabilityLoading ? <LoadingState message="Pobieranie terminów..." /> : (
-            slots.length ? (
-              <div className="slot-grid">
-                {slots.slice(0, 18).map((slot) => (
-                  <button className="slot-button" key={slot.startAt} onClick={() => bookSlot(slot)}>
-                    {formatDateTime(slot.startAt)}
-                  </button>
-                ))}
-              </div>
-            ) : <EmptyState message="Brak wolnych terminów w najbliższych 21 dniach." />
+
+          {!services.length ? (
+            <EmptyState message="Ten terapeuta nie ma przypisanych usług." />
+          ) : (
+            <>
+              <label className="inline-label">
+                Usługa
+                <select value={selectedServiceId} onChange={handleServiceChange}>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedService && (
+                <p className="muted">
+                  {selectedService.name} · {selectedService.durationMinutes} min ·{" "}
+                  {formatMoney(selectedService.basePrice, selectedService.currency || "PLN")}
+                </p>
+              )}
+
+              {bookingError && <div className="form-error" role="alert">{bookingError}</div>}
+              {bookingSuccess && <div className="form-success" role="status">{bookingSuccess}</div>}
+
+              {availabilityLoading ? (
+                <LoadingState message="Pobieranie terminów..." />
+              ) : slots.length ? (
+                <div className="slot-grid">
+                  {slots.slice(0, 18).map((slot) => (
+                    <button
+                      className="slot-button"
+                      key={slot.startAt}
+                      onClick={() => bookSlot(slot)}
+                    >
+                      {formatDateTime(slot.startAt)}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="Brak wolnych terminów w najbliższych 21 dniach." />
+              )}
+            </>
           )}
         </section>
 
         <section className="panel">
           <h2>Opinie pacjentów</h2>
-          {!reviews.length ? <EmptyState message="Ten terapeuta nie ma jeszcze opublikowanych opinii." /> : (
-            <div className="review-list">
-              {reviews.map((review) => (
-                <article className="review" key={review.id}>
-                  <strong>★ {review.rating}/5</strong>
-                  <p>{review.comment || "Bez komentarza."}</p>
-                  <span className="muted">{formatDateTime(review.createdAt)}</span>
-                </article>
-              ))}
-            </div>
+
+          {reviewsLoading ? (
+            <LoadingState message="Pobieranie opinii..." />
+          ) : !reviews.length ? (
+            <EmptyState message="Ten terapeuta nie ma jeszcze opublikowanych opinii." />
+          ) : (
+            <>
+              <div className="review-list">
+                {reviews.map((review) => (
+                  <article className="review" key={review.id}>
+                    <strong>★ {review.rating}/5</strong>
+                    <p>{review.comment || "Bez komentarza."}</p>
+                    <span className="muted">{formatDateTime(review.createdAt)}</span>
+                  </article>
+                ))}
+              </div>
+
+              <Pagination meta={reviewsMeta} onPageChange={setReviewsPage} />
+            </>
           )}
         </section>
       </div>

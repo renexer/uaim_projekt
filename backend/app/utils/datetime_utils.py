@@ -27,3 +27,19 @@ def round_up_to_slot(dt: datetime, slot_minutes: int = 15) -> datetime:
     if delta:
         rounded += timedelta(minutes=delta)
     return rounded
+
+
+def utc_now_naive() -> datetime:
+    """Zwraca bieżący czas UTC bez informacji o strefie czasowej."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def to_utc_naive(dt: datetime) -> datetime:
+    """Konwertuje datetime do UTC i usuwa tzinfo."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Jeśli nie ma tzinfo, zakładamy UTC
+        return dt
+    # Konwertuj do UTC i usuń tzinfo
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
