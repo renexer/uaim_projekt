@@ -16,8 +16,8 @@ Po uruchomieniu:
 | Usługa | Adres |
 |---|---|
 | Frontend React przez NGINX | http://localhost:3000 |
-| Backend Flask API | http://localhost:5000/api/v1 |
-| Healthcheck backendu | http://localhost:5000/api/v1/health |
+| Backend Flask API | http://localhost:8080/api/v1 |
+| Healthcheck backendu | http://localhost:8080/api/v1/health |
 | PostgreSQL | localhost:5432 |
 | pgAdmin, opcjonalnie | `docker compose --profile tools up pgadmin` i http://localhost:5050 |
 

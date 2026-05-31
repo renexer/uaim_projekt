@@ -30,7 +30,7 @@ Konfiguracja Docker uruchamia kompletny system demonstracyjny bez ręcznego star
 ### `backend`
 
 - budowany z `backend/Dockerfile`,
-- port hosta: `5000`,
+- port hosta: `8080`,
 - korzysta z `DATABASE_URL=postgresql://uaim:uaim_password@db:5432/uaim`,
 - po starcie wykonuje `db.create_all()` i `seed_database()`, jeśli `INIT_DB=true`,
 - uruchamia aplikację przez Gunicorn,
@@ -65,8 +65,8 @@ docker compose up --build
 Adresy po starcie:
 
 - frontend: `http://localhost:3000`,
-- backend: `http://localhost:5000/api/v1`,
-- healthcheck: `http://localhost:5000/api/v1/health`.
+- backend: `http://localhost:8080/api/v1`,
+- healthcheck: `http://localhost:8080/api/v1/health`.
 
 ## Zatrzymanie
 
