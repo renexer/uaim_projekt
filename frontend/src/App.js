@@ -1,33 +1,48 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "./App.css";
+import { AuthProvider } from "./AuthContext";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AppointmentsPage from "./pages/AppointmentsPage";
+import BookingPage from "./pages/BookingPage";
+import ConsultationsPage from "./pages/ConsultationsPage";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import RegisterPage from "./pages/RegisterPage";
+import ServicesPage from "./pages/ServicesPage";
+import StaffPage from "./pages/StaffPage";
+import TherapistDetailsPage from "./pages/TherapistDetailsPage";
+import TherapistsPage from "./pages/TherapistsPage";
 
-const API_URL = process.env.REACT_APP_API_URL || "/api/v1";
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<HomePage />} />
+        <Route path="register" element={<RegisterPage />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="services" element={<ServicesPage />} />
+        <Route path="services/:serviceId/therapists" element={<TherapistsPage />} />
+        <Route path="therapists" element={<TherapistsPage />} />
+        <Route path="therapists/:therapistId" element={<TherapistDetailsPage />} />
+        <Route path="booking" element={<BookingPage />} />
+        <Route path="appointments" element={<ProtectedRoute><AppointmentsPage /></ProtectedRoute>} />
+        <Route path="consultations" element={<ProtectedRoute><ConsultationsPage /></ProtectedRoute>} />
+        <Route path="staff" element={<ProtectedRoute roles={["ADMIN", "THERAPIST"]}><StaffPage /></ProtectedRoute>} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
 
 function App() {
-  const [message, setMessage] = useState("Ładowanie...");
-
-  useEffect(() => {
-    // Healthcheck używa aktywnej wersji API backendu. W Dockerze NGINX proxy
-    // przekazuje ścieżkę /api do kontenera Flask, a lokalnie można ustawić
-    // REACT_APP_API_URL=http://localhost:5000/api/v1.
-    fetch(`${API_URL}/health`)
-      .then((response) => response.json())
-      .then((payload) => setMessage(payload?.data?.status || "brak statusu"))
-      .catch((error) => {
-        console.error("Błąd:", error);
-        setMessage("Błąd połączenia z backendem");
-      });
-  }, []);
-
   return (
-    <main className="app-shell">
-      <section className="status-card">
-        <p className="eyebrow">UAIM · gabinet psychologiczno-terapeutyczny</p>
-        <h1>Frontend działa</h1>
-        <p>Status backendu: <strong>{message}</strong></p>
-        <p className="hint">Aktywny endpoint: {API_URL}/health</p>
-      </section>
-    </main>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

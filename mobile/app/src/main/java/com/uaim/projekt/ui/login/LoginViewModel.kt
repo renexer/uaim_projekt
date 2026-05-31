@@ -33,7 +33,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 val api = RetrofitClient.getInstance(getApplication())
                 val response = api.login(LoginRequest(email, password))
                 
-                // Save tokens
+                // Po logowaniu zapisujemy tokeny JWT używane przez AuthInterceptor w kolejnych żądaniach.
                 tokenManager.saveTokens(response.data.accessToken, response.data.refreshToken)
 
                 onSuccess(response.data)

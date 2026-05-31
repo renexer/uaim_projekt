@@ -49,6 +49,7 @@ fun MyAppointmentsScreen(
                     AppointmentItem(
                         appointment = appointment,
                         onReviewClick = { showReviewDialog = appointment.id },
+                        onCancelClick = { viewModel.cancelAppointment(appointment.id) },
                         summary = viewModel.myConsultations[appointment.id]
                     )
                 }
@@ -72,6 +73,7 @@ fun MyAppointmentsScreen(
 fun AppointmentItem(
     appointment: AppointmentDto,
     onReviewClick: () -> Unit,
+    onCancelClick: () -> Unit,
     summary: String? = null
 ) {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
@@ -118,6 +120,16 @@ fun AppointmentItem(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                }
+            }
+
+            if (appointment.status == "BOOKED") {
+                Button(
+                    onClick = onCancelClick,
+                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Anuluj wizytę")
                 }
             }
 

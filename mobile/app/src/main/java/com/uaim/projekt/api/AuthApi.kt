@@ -88,6 +88,12 @@ interface AuthApi {
 
     @POST("api/v1/appointments")
     suspend fun createAppointment(@Body request: CreateAppointmentRequest): ApiResponse<AppointmentDto>
+
+    @POST("api/v1/appointments/{id}/cancel")
+    suspend fun cancelAppointment(
+        @Path("id") id: String,
+        @Body request: CancelAppointmentRequest
+    ): ApiResponse<AppointmentDto>
 }
 
 data class CreateAppointmentRequest(
@@ -95,6 +101,8 @@ data class CreateAppointmentRequest(
     val therapistId: String,
     val startAt: String
 )
+
+data class CancelAppointmentRequest(val reason: String? = null)
 
 data class AvailabilityResponse(
     val service: ServiceMinimalDto,
@@ -164,7 +172,9 @@ data class TherapistPublicDto(
 )
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:5000/"
+    // Emulator Android widzi komputer hosta pod adresem 10.0.2.2.
+    // Dla fizycznego telefonu trzeba tu podać adres IP komputera/serwera z backendem Flask.
+    private const val BASE_URL = "http://10.0.2.2:8080/"
     private var retrofit: Retrofit? = null
 
     fun getInstance(context: Context): AuthApi {
@@ -175,6 +185,7 @@ object RetrofitClient {
             }
             
             val client = OkHttpClient.Builder()
+                // Interceptor automatycznie dodaje nagłówek Authorization: Bearer <token>.
                 .addInterceptor(AuthInterceptor(tokenManager))
                 .addInterceptor(logging)
                 .build()

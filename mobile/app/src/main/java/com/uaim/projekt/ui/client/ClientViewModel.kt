@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uaim.projekt.api.AppointmentDto
+import com.uaim.projekt.api.CancelAppointmentRequest
 import com.uaim.projekt.api.AvailabilityResponse
 import com.uaim.projekt.api.RetrofitClient
 import com.uaim.projekt.api.ReviewRequest
@@ -64,6 +65,7 @@ class ClientViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    // Formularz rezerwacji przekazuje usługę, terapeutę i slot czasowy zgodny z API /api/v1/appointments.
     fun bookAppointment(serviceId: String, therapistId: String, startAt: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             isLoading = true
@@ -74,6 +76,23 @@ class ClientViewModel(application: Application) : AndroidViewModel(application) 
                 onSuccess()
             } catch (e: Exception) {
                 errorMessage = "Błąd rezerwacji: ${e.localizedMessage}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+
+    fun cancelAppointment(appointmentId: String) {
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                val api = RetrofitClient.getInstance(getApplication())
+                api.cancelAppointment(appointmentId, CancelAppointmentRequest("Odwołanie z aplikacji mobilnej"))
+                fetchMyAppointments()
+            } catch (e: Exception) {
+                errorMessage = "Błąd anulowania wizyty: ${e.localizedMessage}"
             } finally {
                 isLoading = false
             }

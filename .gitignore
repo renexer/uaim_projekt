@@ -60,3 +60,34 @@ __pycache__/
 node_modules/
 frontend/node_modules/
 frontend/coverage/
+
+
+
+
+# Node / React
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/coverage/
+frontend/.env
+npm-debug.log*
+
+# Android / Gradle
+.gradle/
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+local.properties
+*.apk
+*.aab
+
+# IDE / system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.rar
+*.7z

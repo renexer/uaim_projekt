@@ -7,6 +7,7 @@ class TokenManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
 
+    // Prosty magazyn tokenów JWT dla aplikacji mobilnej. W wersji produkcyjnej warto użyć EncryptedSharedPreferences.
     fun saveTokens(accessToken: String, refreshToken: String) {
         prefs.edit().apply {
             putString("access_token", accessToken)
