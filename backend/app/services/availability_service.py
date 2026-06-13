@@ -11,15 +11,18 @@ from app.utils.datetime_utils import combine_local, daterange, round_up_to_slot
 from app.utils.errors import ConflictError, NotFoundError, ValidationError
 
 
+# Prosty obiekt danych opisujący pojedynczy dostępny termin wizyty.
 @dataclass
 class Slot:
     start_at: datetime
     end_at: datetime
 
 
+# Warstwa logiki biznesowej wyliczająca dostępne sloty wizyt na podstawie reguł, wyjątków i rezerwacji.
 class AvailabilityService:
     SLOT_MINUTES = 15
 
+    # Konstruktor inicjalizuje zależności potrzebne do działania klasy.
     def __init__(
         self,
         availability_repository: AvailabilityRepository | None = None,
@@ -32,6 +35,7 @@ class AvailabilityService:
         self.therapist_repository = therapist_repository or TherapistRepository()
         self.app_timezone = app_timezone
 
+    # Wylicza dostępne sloty dla terapeuty i usługi w wybranym zakresie dat.
     def get_availability(self, service_id, from_dt, to_dt, therapist_id=None):
         service = self.service_repository.get_active(service_id)
         if not service:
@@ -64,6 +68,7 @@ class AvailabilityService:
             result.append({"therapist": therapist, "slots": slots})
         return {"service": service, "range": {"from": from_dt, "to": to_dt}, "items": result}
 
+    # Sprawdza, czy wskazany slot rzeczywiście istnieje w aktualnie wyliczonej dostępności.
     def slot_exists(self, service_id, therapist_id, start_at):
         service = self.service_repository.get_active(service_id)
         if not service:
@@ -89,6 +94,7 @@ class AvailabilityService:
         slots = self._build_slots_for_therapist(therapist.id, duration_minutes, start_at, end_at)
         return any(slot.start_at == start_at and slot.end_at == end_at for slot in slots)
 
+    # Metoda pomocnicza budująca listę slotów na podstawie reguł dostępności.
     def _build_slots_for_therapist(self, therapist_id, duration_minutes: int, from_dt, to_dt):
         rules = self.availability_repository.get_rules_for_therapist(therapist_id)
         exceptions = self.availability_repository.get_exceptions_in_range(therapist_id, from_dt, to_dt)
@@ -113,6 +119,7 @@ class AvailabilityService:
                     cursor += timedelta(minutes=self.SLOT_MINUTES)
         return slots
 
+    # Metoda pomocnicza sprawdzająca, czy slot jest zablokowany przez wyjątek lub wizytę.
     @staticmethod
     def _is_blocked(start_at, end_at, exceptions, appointments):
         # Usuwamy strefę czasową przed porównaniem, aby uniknąć błędu na SQLite/Windows

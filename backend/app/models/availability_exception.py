@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy opisujący wyjątki od standardowej dostępności terapeuty.
 class AvailabilityException(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "availability_exceptions"
 

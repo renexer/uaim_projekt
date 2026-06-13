@@ -12,7 +12,9 @@ from app.utils.enums import AppointmentStatus
 from app.utils.errors import ConflictError, ForbiddenError, NotFoundError
 
 
+# Warstwa logiki biznesowej odpowiedzialna za rezerwowanie, anulowanie i odczyt wizyt pacjenta.
 class AppointmentService:
+    # Konstruktor inicjalizuje zależności potrzebne do działania klasy.
     def __init__(
         self,
         appointment_repository: AppointmentRepository | None = None,
@@ -25,6 +27,7 @@ class AppointmentService:
         self.notification_service = notification_service or NotificationService()
         self.availability_service = availability_service or AvailabilityService()
 
+    # Tworzy wizytę pacjenta, waliduje slot, zapisuje snapshot usługi/terapeuty i kolejkuje powiadomienia.
     def create(self, patient, payload: dict):
         service = self.service_repository.get_active(payload["serviceId"])
         therapist = TherapistProfile.query.filter_by(id=payload["therapistId"], is_active=True).first()
@@ -77,6 +80,7 @@ class AppointmentService:
         self.notification_service.schedule_booking_email(appointment)
         return appointment
 
+    # Anuluje wizytę pacjenta oraz zapisuje informację o anulowaniu.
     def cancel(self, patient, appointment_id, reason=None):
         appointment = self.appointment_repository.get_patient_appointment(appointment_id, patient.id)
         if not appointment:
@@ -102,9 +106,11 @@ class AppointmentService:
         self.notification_service.schedule_cancellation_email(appointment)
         return appointment
 
+    # Pobiera listę wizyt przypisanych do wskazanego pacjenta.
     def list_for_patient(self, patient_user_id, scope="upcoming"):
         return self.appointment_repository.list_for_patient(patient_user_id, scope)
 
+    # Pobiera szczegóły wizyty dostępne dla konkretnego pacjenta.
     def get_details_for_patient(self, patient_user_id, appointment_id):
         appointment = self.appointment_repository.get_patient_appointment(appointment_id, patient_user_id)
         if not appointment:

@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy przechowujący podsumowanie konsultacji przygotowane przez terapeutę.
 class ConsultationSummary(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "consultation_summaries"
 

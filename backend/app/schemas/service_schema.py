@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields
 
 
+# Schemat Marshmallow serializujący dane usługi do odpowiedzi API.
 class ServiceSchema(Schema):
     id = fields.String(dump_only=True)
     code = fields.String()

@@ -9,7 +9,9 @@ from app.utils.auth import get_current_user, roles_required
 from app.utils.pagination import paginate_items
 
 
+# Schemat waliduje i normalizuje filtry używane przez panel personelu.
 class StaffAppointmentsQuerySchema(Schema):
+    # Konfiguracja pozwala ignorować nieznane parametry query string.
     class Meta:
         unknown = EXCLUDE
 
@@ -20,13 +22,16 @@ class StaffAppointmentsQuerySchema(Schema):
     patientEmail = fields.Email(load_default=None)
 
 
+# Blueprint dla panelu personelu: dashboard, lista wizyt, statusy i podsumowania konsultacji.
 staff_appointments_bp = Blueprint("staff_appointments", __name__, url_prefix="/api/v1/staff")
+# Serwis personelu zawiera logikę dostępu do wizyt z perspektywy admina i terapeuty.
 staff_service = StaffAppointmentService()
 
 
 @staff_appointments_bp.get("/dashboard")
 @jwt_required()
 @roles_required("ADMIN", "THERAPIST")
+# Endpoint zwraca agregaty i najbliższe wizyty do dashboardu personelu.
 def get_staff_dashboard():
     filters = load_or_400(StaffAppointmentsQuerySchema(), request.args.to_dict())
     current_user = get_current_user()
@@ -54,6 +59,7 @@ def get_staff_dashboard():
 @staff_appointments_bp.get("/appointments")
 @jwt_required()
 @roles_required("ADMIN", "THERAPIST")
+# Endpoint zwraca paginowaną listę wizyt z filtrami dla administratora lub terapeuty.
 def list_staff_appointments():
     filters = load_or_400(StaffAppointmentsQuerySchema(), request.args.to_dict())
     current_user = get_current_user()
@@ -84,6 +90,7 @@ def list_staff_appointments():
 @staff_appointments_bp.patch("/appointments/<appointment_id>/status")
 @jwt_required()
 @roles_required("ADMIN", "THERAPIST")
+# Endpoint zmienia status wizyty, np. oznacza ją jako zakończoną lub odwołaną.
 def update_appointment_status(appointment_id):
     payload = load_or_400(AppointmentStatusUpdateSchema(), request.get_json() or {})
     current_user = get_current_user()
@@ -102,6 +109,7 @@ def update_appointment_status(appointment_id):
 @staff_appointments_bp.put("/appointments/<appointment_id>/consultation-summary")
 @jwt_required()
 @roles_required("ADMIN", "THERAPIST")
+# Endpoint tworzy albo aktualizuje podsumowanie konsultacji po wizycie.
 def upsert_consultation_summary(appointment_id):
     payload = load_or_400(ConsultationSummaryUpsertSchema(), request.get_json() or {})
     current_user = get_current_user()

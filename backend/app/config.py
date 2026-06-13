@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 
+# Bazowa konfiguracja aplikacji Flask, wspólna dla wszystkich środowisk uruchomieniowych.
 class BaseConfig:
     """Wspólna konfiguracja aplikacji odczytywana ze zmiennych środowiskowych.
 
@@ -45,10 +46,12 @@ class BaseConfig:
     JSON_SORT_KEYS = False
 
 
+# Konfiguracja środowiska developerskiego z włączonym trybem debugowania.
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
 
 
+# Konfiguracja środowiska testowego używana przez testy automatyczne.
 class TestingConfig(BaseConfig):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
@@ -56,5 +59,6 @@ class TestingConfig(BaseConfig):
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(minutes=30)
 
 
+# Konfiguracja środowiska produkcyjnego z wyłączonym debugowaniem.
 class ProductionConfig(BaseConfig):
     DEBUG = False

@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy reprezentujący rezerwację wizyty pacjenta u terapeuty.
 class Appointment(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "appointments"
 

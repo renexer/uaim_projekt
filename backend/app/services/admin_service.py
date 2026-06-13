@@ -3,10 +3,13 @@ from app.models import Service
 from app.utils.errors import ConflictError, NotFoundError
 
 
+# Warstwa logiki biznesowej dla administracyjnego zarządzania usługami.
 class AdminService:
+    # Zwraca wszystkie usługi dla panelu administratora, również nieaktywne.
     def list_services(self):
         return Service.query.order_by(Service.name.asc()).all()
 
+    # Tworzy nową usługę na podstawie danych z panelu administratora.
     def create_service(self, payload: dict):
         existing = Service.query.filter_by(code=payload["code"]).first()
         if existing:
@@ -24,6 +27,7 @@ class AdminService:
         db.session.commit()
         return service
 
+    # Aktualizuje dane istniejącej usługi bez tworzenia nowego rekordu.
     def update_service(self, service_id, payload: dict):
         service = Service.query.get(service_id)
         if not service:

@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy reprezentujący usługę terapeutyczną dostępną w katalogu.
 class Service(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "services"
 

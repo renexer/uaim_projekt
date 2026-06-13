@@ -1,19 +1,25 @@
 from datetime import date
 
 from app.models import Appointment
+from app.services.notification_service import NotificationService
 from app.services.consultation_service import ConsultationService
 from app.utils.datetime_utils import to_utc_naive, utc_now_naive
 from app.utils.errors import ForbiddenError, NotFoundError
 
 
+# Warstwa logiki biznesowej panelu personelu do obsługi wizyt i podsumowań konsultacji.
 class StaffAppointmentService:
-    def __init__(self, consultation_service: ConsultationService | None = None):
+    # Konstruktor inicjalizuje zależności potrzebne do działania klasy.
+    def __init__(self,consultation_service: ConsultationService | None = None,notification_service: NotificationService | None = None):
         self.consultation_service = consultation_service or ConsultationService()
-
+        self.notification_service = notification_service or NotificationService()
+    
+    # Pobiera listę wizyt widoczną dla aktualnego członka personelu.
     def list_appointments(self, filters: dict, current_user):
         query = self._build_query(filters, current_user)
         return query.order_by(Appointment.start_at.desc()).all()
 
+    # Buduje dane podsumowania panelu personelu, w tym liczniki i najbliższe wizyty.
     def dashboard(self, filters: dict, current_user):
         items = self.list_appointments(filters, current_user)
         now = utc_now_naive()
@@ -36,6 +42,7 @@ class StaffAppointmentService:
             "upcoming": upcoming,
         }
 
+    # Aktualizuje status wizyty oraz wykonuje skutki uboczne, np. powiadomienie o anulowaniu.
     def update_status(self, appointment_id: str, payload: dict, current_user):
         appointment = Appointment.query.get(appointment_id)
         if not appointment:
@@ -52,8 +59,11 @@ class StaffAppointmentService:
         from app.extensions import db
 
         db.session.commit()
+        if payload["status"] == "CANCELLED_BY_CLINIC":
+            self.notification_service.schedule_cancellation_email(appointment)
         return appointment
 
+    # Tworzy albo aktualizuje podsumowanie konsultacji po stronie personelu.
     def upsert_consultation_summary(self, appointment_id: str, current_user, summary_text: str):
         appointment = Appointment.query.get(appointment_id)
         if not appointment:
@@ -61,6 +71,7 @@ class StaffAppointmentService:
         self._ensure_access(appointment, current_user)
         return self.consultation_service.upsert_summary(appointment_id, current_user, summary_text)
 
+    # Buduje zapytanie SQLAlchemy na podstawie filtrów i uprawnień użytkownika.
     def _build_query(self, filters: dict, current_user):
         query = Appointment.query
 
@@ -85,11 +96,13 @@ class StaffAppointmentService:
 
         return query
 
+    # Sprawdza, czy użytkownik jest terapeutą bez uprawnień administratora.
     @staticmethod
     def _is_therapist_only(current_user):
         role_names = {role.name for role in current_user.roles}
         return "THERAPIST" in role_names and "ADMIN" not in role_names
 
+    # Weryfikuje, czy aktualny użytkownik może operować na wskazanej wizycie.
     def _ensure_access(self, appointment, current_user):
         if self._is_therapist_only(current_user):
             therapist_profile = current_user.therapist_profile

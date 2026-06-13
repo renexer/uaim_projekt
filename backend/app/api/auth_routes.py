@@ -9,11 +9,14 @@ from app.utils.auth import get_current_user
 from app.utils.errors import UnauthorizedError
 
 
+# Blueprint uwierzytelniania udostępnia rejestrację, logowanie i obsługę tokenów JWT.
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1")
+# Serwis auth wykonuje operacje związane z użytkownikiem, hasłem i tokenami.
 auth_service = AuthService()
 
 
 @auth_bp.post("/auth/register")
+# Endpoint rejestruje konto pacjenta i zwraca dane nowo utworzonego użytkownika.
 def register():
     payload = load_or_400(RegisterSchema(), request.get_json() or {})
     user = auth_service.register_patient(payload)
@@ -21,6 +24,7 @@ def register():
 
 
 @auth_bp.post("/auth/login")
+# Endpoint loguje użytkownika i zwraca tokeny potrzebne do autoryzacji żądań.
 def login():
     payload = load_or_400(LoginSchema(), request.get_json() or {})
     return success(auth_service.login(payload["email"], payload["password"]))
@@ -28,6 +32,7 @@ def login():
 
 @auth_bp.post("/auth/refresh")
 @jwt_required(refresh=True)
+# Endpoint odświeża access token na podstawie poprawnego refresh tokena.
 def refresh():
     identity = get_jwt_identity()
     user = User.query.get(identity)
@@ -38,6 +43,7 @@ def refresh():
 
 @auth_bp.post("/auth/logout")
 @jwt_required()
+# Endpoint obsługuje wylogowanie użytkownika po stronie API.
 def logout():
     user = get_current_user()
     return success(auth_service.logout(user))
@@ -45,6 +51,7 @@ def logout():
 
 @auth_bp.get("/users/me")
 @jwt_required()
+# Endpoint zwraca profil aktualnie zalogowanego użytkownika.
 def me():
     user = User.query.get(get_jwt_identity())
     if not user:

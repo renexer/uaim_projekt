@@ -5,10 +5,13 @@ from app.utils.enums import AppointmentStatus, ReviewStatus
 from app.utils.errors import ConflictError, ForbiddenError, NotFoundError
 
 
+# Warstwa logiki biznesowej obsługująca tworzenie opinii i aktualizację średnich ocen.
 class ReviewService:
+    # Konstruktor inicjalizuje zależności potrzebne do działania klasy.
     def __init__(self, review_repository: ReviewRepository | None = None):
         self.review_repository = review_repository or ReviewRepository()
 
+    # Tworzy opinię tylko dla zakończonej wizyty pacjenta i odświeża statystyki terapeuty.
     def create(self, patient, appointment_id, rating: int, comment: str | None = None):
         appointment = Appointment.query.filter_by(id=appointment_id, patient_user_id=patient.id).first()
         if not appointment:
@@ -33,6 +36,7 @@ class ReviewService:
         self.refresh_therapist_rating(appointment.therapist_id)
         return review
 
+    # Przelicza średnią ocenę i liczbę opinii zapisane w profilu terapeuty.
     def refresh_therapist_rating(self, therapist_id):
         avg_rating, reviews_count = self.review_repository.get_stats_for_therapist(therapist_id)
         therapist = TherapistProfile.query.get(therapist_id)

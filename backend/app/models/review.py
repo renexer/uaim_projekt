@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy przechowujący opinię pacjenta po zakończonej konsultacji.
 class Review(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "reviews"
 

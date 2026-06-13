@@ -7,12 +7,15 @@ from app.utils.auth import get_current_user
 from app.utils.pagination import paginate_items
 
 
+# Blueprint udostępnia pacjentowi historię zrealizowanych konsultacji.
 consultations_bp = Blueprint("consultations", __name__, url_prefix="/api/v1")
+# Serwis konsultacji pobiera zakończone wizyty i powiązane podsumowania.
 consultation_service = ConsultationService()
 
 
 @consultations_bp.get("/consultations/me")
 @jwt_required()
+# Endpoint zwraca paginowaną historię konsultacji aktualnie zalogowanego pacjenta.
 def list_my_consultations():
     user = get_current_user()
     page = max(int(request.args.get("page", 1)), 1)

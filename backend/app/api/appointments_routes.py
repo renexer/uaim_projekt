@@ -8,12 +8,15 @@ from app.utils.auth import get_current_user
 from app.utils.pagination import paginate_items
 
 
+# Blueprint obsługuje endpointy pacjenta dotyczące rezerwacji wizyt.
 appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/v1")
+# Serwis wizyt zawiera właściwą logikę rezerwacji, pobierania i anulowania terminów.
 appointment_service = AppointmentService()
 
 
 @appointments_bp.post("/appointments")
 @jwt_required()
+# Endpoint tworzy rezerwację wizyty dla aktualnie zalogowanego pacjenta.
 def create_appointment():
     payload = load_or_400(AppointmentCreateSchema(), request.get_json() or {})
     user = get_current_user()
@@ -29,6 +32,7 @@ def create_appointment():
 
 @appointments_bp.get("/appointments/me")
 @jwt_required()
+# Endpoint zwraca paginowaną listę wizyt aktualnego pacjenta.
 def get_my_appointments():
     user = get_current_user()
     scope = request.args.get("scope", "upcoming")
@@ -51,6 +55,7 @@ def get_my_appointments():
 
 @appointments_bp.get("/appointments/<appointment_id>")
 @jwt_required()
+# Endpoint zwraca szczegóły pojedynczej wizyty należącej do aktualnego pacjenta.
 def get_appointment_details(appointment_id):
     user = get_current_user()
     item = appointment_service.get_details_for_patient(user.id, appointment_id)
@@ -72,6 +77,7 @@ def get_appointment_details(appointment_id):
 
 @appointments_bp.post("/appointments/<appointment_id>/cancel")
 @jwt_required()
+# Endpoint anuluje wizytę pacjenta i zapisuje opcjonalny powód anulowania.
 def cancel_appointment(appointment_id):
     payload = load_or_400(AppointmentCancelSchema(), request.get_json() or {})
     user = get_current_user()

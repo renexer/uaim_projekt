@@ -20,6 +20,7 @@ services:
   backend:
     build:
       context: ./backend
+    image: uaim_backend:local
     container_name: uaim_backend
     restart: unless-stopped
     env_file:
@@ -39,6 +40,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  scheduler:
+    image: uaim_backend:local
+    container_name: uaim_scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://uaim:uaim_password@db:5432/uaim
+      FLASK_ENV: development
+      REMINDER_INTERVAL_SECONDS: 30
+    entrypoint: ["python", "scheduler.py"]
+    depends_on:
+      backend:
+        condition: service_healthy
 
   frontend:
     build:

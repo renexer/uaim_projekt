@@ -7,13 +7,16 @@ from app.services.schedule_admin_service import ScheduleAdminService
 from app.utils.auth import roles_required
 
 
+# Blueprint administracyjny dla zarządzania regułami i wyjątkami dostępności terapeutów.
 admin_availability_bp = Blueprint("admin_availability", __name__, url_prefix="/api/v1/admin")
+# Serwis zawiera logikę biznesową związaną z harmonogramem pracy terapeutów.
 schedule_service = ScheduleAdminService()
 
 
 @admin_availability_bp.get("/therapists/<therapist_id>/availability-rules")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint zwraca reguły dostępności przypisane do wybranego terapeuty.
 def list_rules(therapist_id):
     items = schedule_service.list_rules(therapist_id)
     return success([
@@ -33,6 +36,7 @@ def list_rules(therapist_id):
 @admin_availability_bp.post("/therapists/<therapist_id>/availability-rules")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint tworzy nową cykliczną regułę dostępności terapeuty po walidacji danych wejściowych.
 def create_rule(therapist_id):
     payload = load_or_400(AvailabilityRuleCreateSchema(), request.get_json() or {})
     item = schedule_service.create_rule(therapist_id, payload)
@@ -50,6 +54,7 @@ def create_rule(therapist_id):
 @admin_availability_bp.patch("/availability-rules/<rule_id>")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint aktualizuje istniejącą regułę dostępności wskazaną identyfikatorem.
 def update_rule(rule_id):
     payload = load_or_400(AvailabilityRuleUpdateSchema(), request.get_json() or {})
     item = schedule_service.update_rule(rule_id, payload)
@@ -67,6 +72,7 @@ def update_rule(rule_id):
 @admin_availability_bp.delete("/availability-rules/<rule_id>")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint usuwa lub dezaktywuje regułę dostępności terapeuty.
 def delete_rule(rule_id):
     schedule_service.delete_rule(rule_id)
     return success({"deleted": True})
@@ -75,6 +81,7 @@ def delete_rule(rule_id):
 @admin_availability_bp.get("/therapists/<therapist_id>/availability-exceptions")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint zwraca wyjątki od standardowego grafiku, np. urlop albo dodatkową dostępność.
 def list_exceptions(therapist_id):
     items = schedule_service.list_exceptions(therapist_id)
     return success([
@@ -92,6 +99,7 @@ def list_exceptions(therapist_id):
 @admin_availability_bp.post("/therapists/<therapist_id>/availability-exceptions")
 @jwt_required()
 @roles_required("ADMIN")
+# Endpoint tworzy jednorazowy wyjątek w grafiku terapeuty.
 def create_exception(therapist_id):
     payload = load_or_400(AvailabilityExceptionCreateSchema(), request.get_json() or {})
     item = schedule_service.create_exception(therapist_id, payload)

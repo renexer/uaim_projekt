@@ -3,16 +3,20 @@ from app.models import TherapistProfile, TherapistService, User
 from app.utils.errors import ConflictError, NotFoundError
 
 
+# Warstwa logiki biznesowej do zarządzania profilami terapeutów i ich usługami.
 class TherapistAdminService:
+    # Zwraca listę profili terapeutów w kolejności od najnowszych.
     def list_therapists(self):
         return TherapistProfile.query.order_by(TherapistProfile.created_at.desc()).all()
 
+    # Pobiera profil terapeuty albo zgłasza błąd, gdy profil nie istnieje.
     def get_therapist(self, therapist_id):
         therapist = TherapistProfile.query.get(therapist_id)
         if not therapist:
             raise NotFoundError("Terapeuta nie istnieje.", code="THERAPIST_NOT_FOUND")
         return therapist
 
+    # Tworzy profil terapeuty dla istniejącego użytkownika.
     def create_therapist_profile(self, payload: dict):
         user = User.query.get(payload["userId"])
         if not user:
@@ -31,6 +35,7 @@ class TherapistAdminService:
         db.session.commit()
         return therapist
 
+    # Aktualizuje dane profilu terapeuty.
     def update_therapist_profile(self, therapist_id, payload: dict):
         therapist = self.get_therapist(therapist_id)
         if "title" in payload:
@@ -46,6 +51,7 @@ class TherapistAdminService:
         db.session.commit()
         return therapist
 
+    # Przypisuje usługę do terapeuty albo aktualizuje istniejące powiązanie.
     def assign_service(self, therapist_id, payload: dict):
         self.get_therapist(therapist_id)
         service_id = payload["serviceId"]
@@ -67,6 +73,7 @@ class TherapistAdminService:
         db.session.commit()
         return entity
 
+    # Dezaktywuje powiązanie terapeuty z usługą.
     def remove_service(self, therapist_id, service_id):
         link = TherapistService.query.filter_by(therapist_id=therapist_id, service_id=service_id).first()
         if not link:
