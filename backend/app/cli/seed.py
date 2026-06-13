@@ -3,11 +3,14 @@ from app.models import Role, Service
 from app.utils.enums import RoleName
 
 
+# Komenda CLI zakłada podstawowe role i przykładowe usługi wymagane do działania aplikacji.
 def seed_command():
+    # Tworzymy brakujące role, ale nie duplikujemy istniejących rekordów.
     for role_name in [role.value for role in RoleName]:
         if not Role.query.filter_by(name=role_name).first():
             db.session.add(Role(name=role_name))
 
+    # Przykładowe usługi pozwalają szybko uruchomić środowisko developerskie.
     demo_services = [
         {
             "code": "CONSULT_50",
@@ -25,6 +28,7 @@ def seed_command():
         },
     ]
 
+    # Dodajemy usługę tylko wtedy, gdy nie istnieje jeszcze rekord o tym samym kodzie.
     for item in demo_services:
         if not Service.query.filter_by(code=item["code"]).first():
             db.session.add(Service(**item))

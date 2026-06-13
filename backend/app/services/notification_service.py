@@ -13,7 +13,9 @@ from app.extensions import db
 from app.models import Appointment, EmailNotification
 
 
+# Warstwa logiki biznesowej odpowiedzialna za kolejkowanie i wysyłanie powiadomień e-mail.
 class NotificationService:
+    # Kolejkuje e-mail potwierdzający rezerwację oraz przypomnienie 24h przed wizytą.
     def schedule_booking_email(self, appointment):
         self._create_notification(
             appointment_id=appointment.id,
@@ -29,6 +31,7 @@ class NotificationService:
         )
         db.session.commit()
 
+    # Kolejkuje e-mail o anulowaniu wizyty i usuwa oczekujące przypomnienia.
     def schedule_cancellation_email(self, appointment):
         self.cancel_pending_reminders(appointment.id)
 
@@ -40,6 +43,7 @@ class NotificationService:
         )
         db.session.commit()
 
+    # Oznacza oczekujące przypomnienia jako pominięte po anulowaniu wizyty.
     def cancel_pending_reminders(self, appointment_id):
         EmailNotification.query.filter(
             EmailNotification.appointment_id == appointment_id,
@@ -53,6 +57,7 @@ class NotificationService:
             synchronize_session=False,
         )
 
+    # Wysyła wszystkie zaległe powiadomienia, których czas wysyłki już nadszedł.
     def send_due_notifications(self):
         now = datetime.utcnow()
         due = (
@@ -77,6 +82,7 @@ class NotificationService:
         db.session.commit()
         return due
 
+    # Metoda pomocnicza dodająca rekord powiadomienia do kolejki w bazie danych.
     def _create_notification(self, appointment_id, recipient_email, notification_type, scheduled_at):
         db.session.add(
             EmailNotification(
@@ -88,6 +94,7 @@ class NotificationService:
             )
         )
 
+    # Wysyła pojedyncze powiadomienie przez skonfigurowany backend pocztowy.
     def _send(self, notification):
         backend = os.getenv("MAIL_BACKEND", "console")
 
@@ -138,6 +145,7 @@ class NotificationService:
             server.login(smtp_username, smtp_password)
             server.sendmail(mail_sender, [notification.recipient_email], message.as_string())
 
+    # Dobiera temat i treść wiadomości do typu powiadomienia.
     def _build_message(self, notification):
         appointment = None
         if notification.appointment_id:
@@ -176,6 +184,7 @@ class NotificationService:
 
         return subject, plain_body, html_body
 
+    # Buduje tekstową wersję wiadomości jako fallback dla klientów bez HTML.
     def _build_plain_body(self, title, intro, appointment):
         lines = [
             "Spokojna Przystań",
@@ -217,6 +226,7 @@ class NotificationService:
 
         return "\n".join(lines)
 
+    # Buduje graficzną wersję wiadomości HTML spójną ze stylem aplikacji.
     def _build_html_body(self, title, intro, badge, badge_color, appointment):
         details_html = ""
 
@@ -304,6 +314,7 @@ class NotificationService:
 </body>
 </html>"""
 
+    # Generuje pojedynczy wiersz tabeli szczegółów w wiadomości HTML.
     def _detail_row(self, label, value):
         return f"""
             <tr>
@@ -316,6 +327,7 @@ class NotificationService:
             </tr>
         """
 
+    # Formatuje datę wizyty do strefy czasowej aplikacji.
     def _format_datetime(self, value):
         if not value:
             return "—"
@@ -328,5 +340,6 @@ class NotificationService:
         local_value = value.astimezone(ZoneInfo(app_timezone))
         return local_value.strftime("%d.%m.%Y, %H:%M")
 
+    # Zwraca publiczny adres frontendu używany w linkach e-mail.
     def _public_url(self):
         return os.getenv("APP_PUBLIC_URL", "http://localhost:3000").rstrip("/")

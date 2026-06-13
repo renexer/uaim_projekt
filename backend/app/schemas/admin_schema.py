@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, validate
 
 
+# Schemat Marshmallow walidujący dane tworzenia nowej usługi.
 class ServiceCreateSchema(Schema):
     code = fields.String(required=True, validate=validate.Length(min=3, max=100))
     name = fields.String(required=True, validate=validate.Length(min=3, max=255))
@@ -11,6 +12,7 @@ class ServiceCreateSchema(Schema):
     isActive = fields.Boolean(load_default=True)
 
 
+# Schemat Marshmallow walidujący dane aktualizacji usługi.
 class ServiceUpdateSchema(Schema):
     code = fields.String(validate=validate.Length(min=3, max=100))
     name = fields.String(validate=validate.Length(min=3, max=255))
@@ -21,6 +23,7 @@ class ServiceUpdateSchema(Schema):
     isActive = fields.Boolean()
 
 
+# Schemat Marshmallow walidujący dane tworzenia profilu terapeuty.
 class TherapistProfileCreateSchema(Schema):
     userId = fields.String(required=True)
     title = fields.String(required=True, validate=validate.Length(min=2, max=120))
@@ -30,6 +33,7 @@ class TherapistProfileCreateSchema(Schema):
     isActive = fields.Boolean(load_default=True)
 
 
+# Schemat Marshmallow walidujący dane aktualizacji profilu terapeuty.
 class TherapistProfileUpdateSchema(Schema):
     title = fields.String(validate=validate.Length(min=2, max=120))
     bio = fields.String(validate=validate.Length(min=5))
@@ -38,6 +42,7 @@ class TherapistProfileUpdateSchema(Schema):
     isActive = fields.Boolean()
 
 
+# Schemat Marshmallow walidujący przypisanie usługi do terapeuty.
 class TherapistServiceAssignSchema(Schema):
     serviceId = fields.String(required=True)
     priceOverride = fields.Decimal(load_default=None, as_string=True)
@@ -45,6 +50,7 @@ class TherapistServiceAssignSchema(Schema):
     isActive = fields.Boolean(load_default=True)
 
 
+# Schemat Marshmallow walidujący tworzenie reguły dostępności terapeuty.
 class AvailabilityRuleCreateSchema(Schema):
     weekday = fields.Integer(required=True, validate=validate.Range(min=1, max=7))
     startTime = fields.Time(required=True)
@@ -54,6 +60,7 @@ class AvailabilityRuleCreateSchema(Schema):
     isActive = fields.Boolean(load_default=True)
 
 
+# Schemat Marshmallow walidujący aktualizację reguły dostępności terapeuty.
 class AvailabilityRuleUpdateSchema(Schema):
     weekday = fields.Integer(validate=validate.Range(min=1, max=7))
     startTime = fields.Time()
@@ -63,6 +70,7 @@ class AvailabilityRuleUpdateSchema(Schema):
     isActive = fields.Boolean()
 
 
+# Schemat Marshmallow walidujący tworzenie wyjątku dostępności.
 class AvailabilityExceptionCreateSchema(Schema):
     type = fields.String(required=True, validate=validate.OneOf(["UNAVAILABLE", "EXTRA_AVAILABLE"]))
     startAt = fields.DateTime(required=True)
@@ -70,6 +78,7 @@ class AvailabilityExceptionCreateSchema(Schema):
     reason = fields.String(load_default=None)
 
 
+# Schemat Marshmallow walidujący zmianę statusu wizyty przez personel.
 class AppointmentStatusUpdateSchema(Schema):
     status = fields.String(required=True, validate=validate.OneOf(["COMPLETED", "NO_SHOW", "CANCELLED_BY_CLINIC"]))
     cancellationReason = fields.String(load_default=None)

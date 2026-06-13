@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy reprezentujący powiadomienie e-mail oczekujące na wysyłkę lub już przetworzone.
 class EmailNotification(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "email_notifications"
 

@@ -10,10 +10,13 @@ from app.utils.enums import RoleName
 from app.utils.errors import ConflictError, UnauthorizedError
 
 
+# Warstwa logiki biznesowej obsługująca rejestrację, logowanie i tokeny JWT.
 class AuthService:
+    # Konstruktor inicjalizuje zależności potrzebne do działania klasy.
     def __init__(self, user_repository=None):
         self.user_repository = user_repository or UserRepository()
 
+    # Rejestruje nowe konto pacjenta i przypisuje mu rolę PATIENT.
     def register_patient(self, payload: dict) -> User:
         existing_user = self.user_repository.get_by_email(payload["email"])
         if existing_user:
@@ -42,6 +45,7 @@ class AuthService:
         db.session.commit()
         return user
 
+    # Weryfikuje dane logowania i wydaje tokeny JWT.
     def login(self, email: str, password: str) -> dict:
         user = self.user_repository.get_by_email(email)
         if not user or not check_password_hash(user.password_hash, password):
@@ -56,12 +60,15 @@ class AuthService:
         db.session.commit()
         return self._issue_tokens(user)
 
+    # Wystawia nową parę tokenów na podstawie ważnego refresh tokena.
     def refresh(self, user: User) -> dict:
         return {"accessToken": create_access_token(identity=str(user.id))}
 
+    # Unieważnia przekazany token JWT przez dodanie go do blacklisty.
     def logout(self, user: User) -> dict:
         return {"message": f"Użytkownik {user.email} został wylogowany po stronie klienta."}
 
+    # Metoda pomocnicza tworząca access token i refresh token dla użytkownika.
     def _issue_tokens(self, user: User) -> dict:
         return {
             "accessToken": create_access_token(identity=str(user.id)),
@@ -69,6 +76,7 @@ class AuthService:
             "user": self.serialize_user(user),
         }
 
+    # Zamienia model użytkownika na słownik zwracany w odpowiedzi API.
     @staticmethod
     def serialize_user(user: User) -> dict:
         return {

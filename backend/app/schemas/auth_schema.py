@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, validate
 
 
+# Schemat Marshmallow walidujący dane rejestracji pacjenta.
 class RegisterSchema(Schema):
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(min=8, max=128))
@@ -9,6 +10,7 @@ class RegisterSchema(Schema):
     phone = fields.String(load_default=None)
 
 
+# Schemat Marshmallow walidujący dane logowania.
 class LoginSchema(Schema):
     email = fields.Email(required=True)
     password = fields.String(required=True)

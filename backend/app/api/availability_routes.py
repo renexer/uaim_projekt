@@ -5,12 +5,16 @@ from app.schemas import AvailabilityQuerySchema, SlotSchema, TherapistPublicSche
 from app.services.availability_service import AvailabilityService
 
 
+# Blueprint publiczny do pobierania dostępnych terminów wizyt.
 availability_bp = Blueprint("availability", __name__, url_prefix="/api/v1")
+# Schemat listy slotów formatuje dostępne terminy do odpowiedzi JSON.
 slot_schema = SlotSchema(many=True)
+# Schemat terapeuty dołącza informacje o specjaliście przy zwracaniu dostępności.
 therapist_schema = TherapistPublicSchema()
 
 
 @availability_bp.get("/availability")
+# Endpoint oblicza dostępne sloty dla usługi, terapeuty i zakresu dat.
 def get_availability():
     payload = load_or_400(AvailabilityQuerySchema(), request.args.to_dict())
     service = AvailabilityService(app_timezone=current_app.config["APP_TIMEZONE"])

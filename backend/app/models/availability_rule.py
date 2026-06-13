@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy przechowujący cykliczne reguły dostępności terapeuty.
 class AvailabilityRule(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "availability_rules"
 

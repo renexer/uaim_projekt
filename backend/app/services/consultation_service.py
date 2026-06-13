@@ -4,7 +4,9 @@ from app.utils.enums import AppointmentStatus
 from app.utils.errors import ForbiddenError, NotFoundError
 
 
+# Warstwa logiki biznesowej obsługująca podsumowania konsultacji.
 class ConsultationService:
+    # Tworzy albo aktualizuje podsumowanie konsultacji dla zakończonej wizyty.
     def upsert_summary(self, appointment_id, current_user, summary_text: str):
         appointment = Appointment.query.get(appointment_id)
         if not appointment:
@@ -25,6 +27,7 @@ class ConsultationService:
         db.session.commit()
         return summary
 
+    # Pobiera listę wizyt przypisanych do wskazanego pacjenta.
     def list_for_patient(self, patient_user_id):
         return (
             Appointment.query.filter_by(patient_user_id=patient_user_id, status=AppointmentStatus.COMPLETED.value)

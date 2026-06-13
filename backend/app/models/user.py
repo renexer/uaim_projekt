@@ -4,6 +4,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Tabela asocjacyjna SQLAlchemy łącząca użytkowników z przypisanymi rolami.
 class UserRole(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "user_roles"
 
@@ -16,6 +17,7 @@ class UserRole(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "role_id", name="uq_user_role"),)
 
 
+# Model SQLAlchemy reprezentujący konto użytkownika aplikacji.
 class User(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "users"
 
@@ -39,5 +41,6 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
         cascade="all, delete-orphan",
     )
 
+    # Zwraca pełną nazwę użytkownika złożoną z imienia i nazwiska.
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"

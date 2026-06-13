@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# Model SQLAlchemy opisujący publiczny profil terapeuty powiązany z kontem użytkownika.
 class TherapistProfile(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     __tablename__ = "therapist_profiles"
 

@@ -3,10 +3,13 @@ from sqlalchemy import or_
 from app.models import TherapistProfile, TherapistService, User
 
 
+# Repozytorium obsługujące zapytania dotyczące profili terapeutów.
 class TherapistRepository:
+    # Pobiera encję po identyfikatorze z użyciem modelu przypisanego do repozytorium.
     def get(self, therapist_id):
         return TherapistProfile.query.filter_by(id=therapist_id).first()
 
+    # Pobiera aktywnych terapeutów realizujących wskazaną usługę.
     def list_for_service(self, service_id):
         return (
             TherapistProfile.query.join(
@@ -21,6 +24,7 @@ class TherapistRepository:
             .all()
         )
 
+    # Pobiera publiczną listę aktywnych terapeutów, opcjonalnie zawężoną wyszukiwaniem.
     def list_public(self, service_id=None, search_query=None):
         query = (
             TherapistProfile.query.join(User, User.id == TherapistProfile.user_id)
