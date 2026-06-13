@@ -95,7 +95,7 @@ mobile/app/src/main/java/com/uaim/projekt/
 Plik zawiera:
 
 - konfigurację bazowego adresu API,
-- definicje endpointów Retrofit,
+- definie endpointów Retrofit,
 - klasy DTO dla zapytań i odpowiedzi,
 - utworzenie klienta Retrofit i OkHttp.
 
@@ -246,8 +246,6 @@ Komentarze dodano w miejscach istotnych dla zrozumienia działania aplikacji:
 - przy ViewModelach odpowiedzialnych za logowanie i przepływy pacjenta,
 - przy operacji anulowania wizyty.
 
-Nie komentowano każdej linijki, aby kod pozostał czytelny.
-
 ## Weryfikacja działania
 
 Aplikację mobilną zweryfikowano ręcznie na emulatorze Android. Sprawdzone przepływy:
@@ -261,18 +259,6 @@ Aplikację mobilną zweryfikowano ręcznie na emulatorze Android. Sprawdzone prz
 - lista moich wizyt,
 - anulowanie wizyty,
 - historia konsultacji/opinie.
-
-Backend podczas testów działał lokalnie pod adresem:
-
-```text
-http://127.0.0.1:8080/api/v1
-```
-
-Aplikacja mobilna w emulatorze używała adresu:
-
-```text
-http://10.0.2.2:8080/
-```
 
 ## Uruchomienie lokalne
 
@@ -289,20 +275,6 @@ http://127.0.0.1:8080/api/v1/health
 4. Uruchomić emulator Android.
 5. Uruchomić konfigurację aplikacji.
 
-Alternatywnie z terminala:
-
-```bash
-cd uaim_projekt
-./gradlew :app:assembleDebug
-```
-
-Na Windows:
-
-```powershell
-cd uaim_projekt
-.\gradlew.bat :mobile:assembleDebug
-```
-
 ## Konta testowe
 
 - Pacjent: `jan@example.com` / `Password123!`,
@@ -310,3 +282,40 @@ cd uaim_projekt
 - Terapeuta: `anna@example.com` / `Password123!`,
 - Terapeuta: `piotr@example.com` / `Password123!`,
 - Administrator: `admin@example.com` / `Admin123!`.
+
+---
+
+## [DODANE]
+
+
+### 1. Rozszerzona analiza architektury (MVVM & State Management)
+W celu zapewnienia wysokiej responsywności i stabilności, aplikacja wykorzystuje wzorce **Modern Android Development (MAD)**:
+*   **ViewModel & StateFlow:** Logika biznesowa jest całkowicie odizolowana od warstwy UI. Stany ekranów są emitowane przez `StateFlow`, co gwarantuje spójność danych nawet przy zmianach konfiguracji (np. obrót ekranu).
+*   **Kotlin Coroutines:** Wszystkie operacje I/O (sieć, SharedPreferences) są wykonywane asynchronicznie, co eliminuje ryzyko blokowania wątku głównego (UI thread).
+
+### 2. Zaawansowane rozwiązania w komunikacji API
+*   **Transparentna Autoryzacja:** Implementacja `AuthInterceptor.kt` pozwala na automatyczne dołączanie tokena JWT do nagłówków HTTP. Zwalnia to programistę z konieczności ręcznego przekazywania tokenów w każdym wywołaniu usługi.
+*   **Obsługa błędów biznesowych:** System został wzbogacony o inteligentne parsowanie błędów z backendu. W przypadku odmowy akcji (np. zbyt późna próba anulowania wizyty), aplikacja wyświetla precyzyjny komunikat zwrócony przez API zamiast generycznego błędu sieciowego.
+
+### 3. Optymalizacja User Flow i Nawigacji
+*   **Context-Aware Booking:** Proces rezerwacji został zaprojektowany liniowo (**Usługa -> Terapeuta -> Termin**). Dzięki dynamicznemu filtrowaniu (`GET /services/{id}/therapists`), użytkownik widzi tylko tych specjalistów, którzy faktycznie świadczą wybraną usługę.
+*   **Zarządzanie argumentami w Navigation Compose:** Wykorzystano bezpieczne przekazywanie parametrów (ID obiektów) poprzez ścieżki w `Navigation.kt`, co zapewnia poprawny kontekst danych na każdym etapie rezerwacji.
+
+### 4. Szczegóły implementacyjne kluczowych klas
+*   **`AuthApi.kt`**: Centralny interfejs Retrofit definiujący endpointy API. Zastosowanie wzorca DTO (Data Transfer Objects) zapewnia separację modeli sieciowych od modeli domenowych aplikacji.
+*   **`AuthInterceptor.kt`**: Działa na poziomie warstwy sieciowej OkHttp. Automatyzacja dodawania nagłówka `Authorization` eliminuje błędy związane z brakiem uprawnień w zapytaniach chronionych.
+*   **`TokenManager.kt`**: Zarządza cyklem życia sesji w `SharedPreferences`. Klasa ta zapewnia trwałość danych logowania, umożliwiając automatyczne odtworzenie sesji po restarcie aplikacji.
+*   **`ClientViewModel.kt`**: Implementuje wzorzec **State Hoisting**, przechowując stan ładowania, błędy oraz dane wynikowe. Dzięki temu komponenty Compose pozostają bezstanowe i łatwe do testowania.
+
+### 5. Kluczowe decyzje projektowe
+*   **Wybór Jetpack Compose:** Zrezygnowano z tradycyjnych widoków XML na rzecz deklaratywnego UI. Decyzja ta pozwoliła na szybsze budowanie dynamicznych list (np. dostępnych terminów) oraz lepszą integrację z reaktywnym stanem ViewModeli.
+*   **Liniowy proces rezerwacji:** W aplikacji mobilnej wymuszono ścisłą kolejność (Usługa -> Terapeuta -> Termin). Taki "tunnelling" upraszcza interfejs na małych ekranach i minimalizuje ryzyko pomyłek użytkownika.
+*   **Mapowanie błędów API:** Zdecydowano się na ręczne mapowanie kodów błędów backendu na zasoby tekstowe aplikacji, co pozwala na wyświetlanie przyjaznych dla użytkownika komunikatów w języku polskim.
+
+### 6. Kluczowe elementy UI (Jetpack Compose)
+Aplikacja w pełni wykorzystuje potencjał **Jetpack Compose** do budowy nowoczesnego interfejsu:
+*   **Scaffold & TopAppBar:** Zapewniają spójną strukturę każdego ekranu, obsługując tytuły sekcji oraz przyciski nawigacyjne (np. powrót).
+*   **LazyColumn:** Wykorzystany do wydajnego wyświetlania list usług, terapeutów oraz wizyt. Pozwala na płynne przewijanie nawet przy dużej liczbie elementów.
+*   **Card & Material Design 3:** Informacje o wizytach czy usługach są prezentowane w formie czytelnych kart, co poprawia estetykę i hierarchię wizualną aplikacji.
+*   **State-driven UI:** Elementy takie jak `CircularProgressIndicator` czy komunikaty o błędach są sterowane bezpośrednio stanem z ViewModelu, co zapewnia natychmiastową reakcję interfejsu na zmiany (np. proces ładowania danych).
+*   **Custom Theme:** Aplikacja definiuje własną paletę kolorów i typografię zgodną z Material 3, co zapewnia spójność wizualną z systemem Android.
