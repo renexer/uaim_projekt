@@ -1,15 +1,17 @@
 from datetime import date
 
 from app.models import Appointment
+from app.services.notification_service import NotificationService
 from app.services.consultation_service import ConsultationService
 from app.utils.datetime_utils import to_utc_naive, utc_now_naive
 from app.utils.errors import ForbiddenError, NotFoundError
 
 
 class StaffAppointmentService:
-    def __init__(self, consultation_service: ConsultationService | None = None):
+    def __init__(self,consultation_service: ConsultationService | None = None,notification_service: NotificationService | None = None):
         self.consultation_service = consultation_service or ConsultationService()
-
+        self.notification_service = notification_service or NotificationService()
+    
     def list_appointments(self, filters: dict, current_user):
         query = self._build_query(filters, current_user)
         return query.order_by(Appointment.start_at.desc()).all()
@@ -52,6 +54,8 @@ class StaffAppointmentService:
         from app.extensions import db
 
         db.session.commit()
+        if payload["status"] == "CANCELLED_BY_CLINIC":
+            self.notification_service.schedule_cancellation_email(appointment)
         return appointment
 
     def upsert_consultation_summary(self, appointment_id: str, current_user, summary_text: str):
